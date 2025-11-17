@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-
-const database = await db;
 // yang atas ini reusable untuk tiap route api yg butuh db
 
 // yang bawah cuma tes doang, apus klo egk btuh lg
 export async function GET() {
+  const database = await db;
   const user = database?.collection("users"); // collection user hanya contoh
 
   if (user) {
