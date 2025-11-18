@@ -1,56 +1,51 @@
 "use client";
-import { useState } from "react";
-import MainLayout from "@/components/layout/MainLayout";
+import { Bookmark, ChevronLeft, Heart, MessageCircleMore, Repeat2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Post, User } from "@/lib/types";
+import TweetCard from "./TweetCard";
+import Image from "next/image";
 
-interface TweetDetailProps {
-  tweetId: string;
-}
+export default function TweetDetail({ tweet, loading }: { tweet?: Post, loading?: boolean }) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loggedUser, setLoggedUser] = useState<string | null>(null);
+  const [replies, setReplies] = useState<Post[] | null>(null);
 
-export default function TweetDetail({ tweetId }: TweetDetailProps) {
-  const [tweet] = useState({
-    id: tweetId,
-    author: { name: "John Doe", username: "johndoe" },
-    content: "This is a sample tweet that you clicked on to see the details and replies!",
-    createdAt: new Date().toISOString(),
-    stats: { likes: 45, retweets: 12, quotes: 3, replies: 8 }
-  });
+  useEffect(() => {
+    const storedUser = localStorage.getItem('loggedUser');
+    const t = setTimeout(() => setLoggedUser(storedUser), 0);
+    return () => clearTimeout(t);
+  }, [])
 
-  const [replies] = useState([
-    {
-      id: "1",
-      author: { name: "Alice Smith", username: "alicesmith" },
-      content: "Great tweet! I totally agree with this.",
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      stats: { likes: 5, retweets: 1, quotes: 0, replies: 2 }
-    },
-    {
-      id: "2", 
-      author: { name: "Bob Johnson", username: "bobjohnson" },
-      content: "Thanks for sharing this insight. Really helpful!",
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-      stats: { likes: 3, retweets: 0, quotes: 0, replies: 1 }
+  useEffect(() => {
+    async function fetchUser(userId: string) {
+      const response = await fetch('/api/user?id=' + userId);
+      const data = await response.json();
+      setCurrentUser(data as User);
     }
-  ]);
+    if(loggedUser) fetchUser(loggedUser);
+  }, [loggedUser])
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHours < 1) {
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      return `${diffMins}m`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h`;
-    } else {
-      const diffDays = Math.floor(diffHours / 24);
-      return `${diffDays}d`;
+  useEffect(() => {
+    async function fetchReplies() {
+      const response = await fetch('/api/post?repref=' + tweet!.tweetId);
+      const data = await response.json();
+      setReplies(data as Post[]);
     }
-  };
+    if (tweet) fetchReplies();
+  }, [tweet])
+
+  if (loading) {
+    return (
+      <div className="p-4 animate-pulse">
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="w-8 h-8 bg-gray-300 rounded-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <MainLayout>
+    <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
         <div className="flex items-center space-x-4">
@@ -58,62 +53,54 @@ export default function TweetDetail({ tweetId }: TweetDetailProps) {
             onClick={() => window.history.back()}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold text-black">Post</h1>
         </div>
       </div>
 
       {/* Main Tweet */}
-      <article className="p-4 border-b border-gray-200">
-        <div className="flex space-x-3">
-          <div className="w-12 h-12 bg-gray-300 rounded-full flex-shrink-0"></div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-1 mb-2">
-              <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-                {tweet.author.name}
-              </h3>
-              <span className="text-gray-500">@{tweet.author.username}</span>
+      <article className="p-4 pb-2 border-b border-gray-200">
+        <div className="flex flex-col">
+          <div className="flex space-x-3 mb-2">
+            <Image src={`/img/${tweet!.author.media.profileImage}`} className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col space-x-1 mb-2">
+                <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                  {tweet!.author.name}
+                </h3>
+                <span className="text-gray-500">@{tweet!.author.username}</span>
+              </div>
             </div>
-            <div className="mb-4">
-              <p className="text-gray-900 text-lg leading-relaxed">{tweet.content}</p>
-            </div>
-            <div className="text-gray-500 text-sm mb-4">
-              {new Date(tweet.createdAt).toLocaleTimeString()} · {new Date(tweet.createdAt).toLocaleDateString()}
-            </div>
+          </div>
+          <div className="mb-4">
+            <p className="text-gray-900 text-xl leading-relaxed">{tweet!.content}</p>
+          </div>
+          <div className="text-gray-500 mb-2">
+            {new Date(tweet!.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet!.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
             
-            {/* Interaction Stats */}
-            <div className="flex items-center space-x-6 py-3 border-t border-b border-gray-200 text-gray-500 text-sm">
-              <span><span className="font-semibold text-gray-900">{tweet.stats.retweets}</span> Retweets</span>
-              <span><span className="font-semibold text-gray-900">{tweet.stats.quotes}</span> Quote Tweets</span>
-              <span><span className="font-semibold text-gray-900">{tweet.stats.likes}</span> Likes</span>
-            </div>
+          {/* Interaction Stats */}
+          <div className="flex items-center space-x-6 py-2 border-t border-b border-gray-200 text-gray-500 text-sm">
+            <span><span className="font-semibold text-gray-900">{tweet!.stats.retweets}</span> Retweets</span>
+            <span><span className="font-semibold text-gray-900">{tweet!.stats.quotes}</span> Quote Tweets</span>
+            <span><span className="font-semibold text-gray-900">{tweet!.stats.likes}</span> Likes</span>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-around py-3 border-b border-gray-200">
-              <button className="p-2 hover:bg-pink-50 rounded-full transition-colors group">
-                <svg className="w-5 h-5 text-gray-500 group-hover:text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </button>
-              <button className="p-2 hover:bg-green-50 rounded-full transition-colors group">
-                <svg className="w-5 h-5 text-gray-500 group-hover:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-              </button>
-              <button className="p-2 hover:bg-red-50 rounded-full transition-colors group">
-                <svg className="w-5 h-5 text-gray-500 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </button>
-              <button className="p-2 hover:bg-blue-50 rounded-full transition-colors group">
-                <svg className="w-5 h-5 text-gray-500 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                </svg>
-              </button>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex items-center justify-around pt-2 border-gray-200">
+            <button className="p-2 hover:bg-pink-50 rounded-full transition-colors group">
+              <MessageCircleMore className="w-5 h-5 text-gray-500 group-hover:text-pink-500" />
+            </button>
+            <button className="p-2 hover:bg-green-50 rounded-full transition-colors group">
+              <Repeat2 className="w-5 h-5 text-gray-500 group-hover:text-green-500" />
+            </button>
+            <button className="p-2 hover:bg-red-50 rounded-full transition-colors group">
+              <Heart className="w-5 h-5 text-gray-500 group-hover:text-red-500" />
+            </button>
+            <button className="p-2 hover:bg-blue-50 rounded-full transition-colors group">
+              <Bookmark className="w-5 h-5 text-gray-500 group-hover:text-blue-500" />
+            </button>
           </div>
         </div>
       </article>
@@ -121,7 +108,11 @@ export default function TweetDetail({ tweetId }: TweetDetailProps) {
       {/* Reply Form */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex space-x-3">
-          <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
+          {currentUser ?
+            <Image src={`/img/${currentUser!.media.profileImage}`} className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
+          :
+            <div className="w-10 h-10 bg-gray-300 rounded-full animate-pulse flex-shrink-0"></div>
+          }
           <div className="flex-1">
             <textarea 
               placeholder="Post your reply"
@@ -139,49 +130,12 @@ export default function TweetDetail({ tweetId }: TweetDetailProps) {
 
       {/* Replies */}
       <div className="divide-y divide-gray-200">
-        {replies.map((reply) => (
-          <article key={reply.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-            <div className="flex space-x-3">
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-1 mb-1">
-                  <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-                    {reply.author.name}
-                  </h3>
-                  <span className="text-gray-500">@{reply.author.username}</span>
-                  <span className="text-gray-500">·</span>
-                  <span className="text-gray-500">{formatTime(reply.createdAt)}</span>
-                </div>
-                <div className="mb-2">
-                  <p className="text-gray-900">{reply.content}</p>
-                </div>
-                
-                {/* Reply Actions */}
-                <div className="flex items-center space-x-6">
-                  <button className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <span className="text-sm">{reply.stats.replies}</span>
-                  </button>
-                  <button className="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                    </svg>
-                    <span className="text-sm">{reply.stats.retweets}</span>
-                  </button>
-                  <button className="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    <span className="text-sm">{reply.stats.likes}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </article>
-        ))}
+        {replies ? (
+          replies.map((reply, _) => <TweetCard key={_} tweet={reply} />)
+        ) : (
+          <p>No replies yet.</p>
+        )}
       </div>
-    </MainLayout>
+    </>
   );
 }

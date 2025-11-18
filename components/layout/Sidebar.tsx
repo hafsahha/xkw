@@ -1,54 +1,21 @@
 "use client";
-
-import Link from "next/link";
+import { Bell, Bookmark, House, Plus, Search, User2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { User } from "@/lib/types";
 import NewPostModal from "@/components/NewPostModal";
-
-interface SidebarProps {
-  onClose?: () => void;
-}
-
-// Custom SVG Icons
-const HomeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m3 12 2-2m0 0 7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-  </svg>
-);
-
-const MagnifyingGlassIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-  </svg>
-);
-
-const BellIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-  </svg>
-);
-
-const BookmarkIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-  </svg>
-);
-
-const UserIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-  </svg>
-);
+import Link from "next/link";
+import Image from "next/image";
 
 const navigationItems = [
-  { name: "Home", href: "/", icon: HomeIcon },
-  { name: "Explore", href: "/explore", icon: MagnifyingGlassIcon },
-  { name: "Notifications", href: "/notifications", icon: BellIcon },
-  { name: "Bookmarks", href: "/bookmarks", icon: BookmarkIcon },
-  { name: "Profile", href: "/profile", icon: UserIcon },
+  { name: "Home", href: "/home", icon: House },
+  { name: "Explore", href: "/explore", icon: Search },
+  { name: "Notifications", href: "/notifications", icon: Bell },
+  { name: "Bookmarks", href: "/bookmarks", icon: Bookmark },
+  { name: "Profile", href: "/profile", icon: User2 },
 ];
 
-export default function Sidebar({ onClose }: SidebarProps) {
+export default function Sidebar({ onClose, user }: { onClose?: () => void, user: User | null }) {
   const pathname = usePathname();
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
 
@@ -70,14 +37,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
       <div className="flex flex-col h-full p-4 md:p-2 lg:p-4">
         {/* Logo - Hidden on mobile since it's in the header */}
         <div className="hidden lg:block mb-8">
-          <Link href="/" className="text-3xl font-bold text-pink-500">
+          <Link href="/home" className="text-3xl font-bold text-pink-500">
             XKW
           </Link>
         </div>
         
         {/* Logo Icon for md screens */}
         <div className="hidden md:block lg:hidden mb-8 text-center">
-          <Link href="/" className="text-2xl font-bold text-pink-500">
+          <Link href="/home" className="text-2xl font-bold text-pink-500">
             X
           </Link>
         </div>
@@ -111,27 +78,37 @@ export default function Sidebar({ onClose }: SidebarProps) {
           {/* Tweet Button */}
           <button 
             onClick={() => setIsNewPostOpen(true)}
-            className="w-full md:w-12 md:h-12 lg:w-full lg:h-auto bg-pink-500 hover:bg-pink-600 text-white font-semibold py-3 px-6 md:p-3 lg:px-6 lg:py-3 rounded-full transition-colors flex items-center justify-center space-x-2 md:space-x-0 lg:space-x-2 mt-6"
+            className="w-full md:w-12 md:h-12 lg:w-full lg:h-auto bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-6 md:p-3 lg:px-6 lg:py-3 rounded-full transition-colors flex items-center justify-center space-x-2 md:space-x-0 lg:space-x-2 mt-6"
             title="New Post"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
+            <Plus className="w-6 h-6" />
             <span className="md:hidden lg:block">New Post</span>
           </button>
         </nav>
 
         {/* User Profile */}
         <div className="mt-auto space-y-4">
-          <div className="p-3 md:p-2 lg:p-3 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors">
-            <div className="flex items-center md:justify-center lg:justify-start space-x-3 md:space-x-0 lg:space-x-3">
-              <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-              <div className="flex-1 min-w-0 md:hidden lg:block">
-                <p className="font-semibold text-sm truncate text-black">Username</p>
-                <p className="text-gray-500 text-sm truncate">@username</p>
+          {user ? (
+            <div className="p-3 md:p-2 lg:p-3 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors">
+              <div className="flex items-center md:justify-center lg:justify-start space-x-3 md:space-x-0 lg:space-x-3">
+                <Image className="size-10 flex-shrink-0 rounded-full" src={`/img/${user.media.profileImage}`} alt="User Profile" width={40} height={40} />
+                <div className="flex-1 min-w-0 md:hidden lg:block">
+                  <p className="font-semibold text-sm truncate text-black">{user.name}</p>
+                  <p className="text-gray-500 text-sm truncate">@{user.username}</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-3 md:p-2 lg:p-3 rounded-xl transition-colors animate-pulse">
+              <div className="flex items-center md:justify-center lg:justify-start space-x-3 md:space-x-0 lg:space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gray-200" />
+                <div className="flex-1 min-w-0 md:hidden lg:block">
+                  <div className="h-4 bg-gray-200 rounded w-32 mb-1" />
+                  <div className="h-3 bg-gray-200 rounded w-24" />
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Auth Links */}
           <div className="flex md:flex-col lg:flex-row space-x-2 md:space-x-0 lg:space-x-2 md:space-y-2 lg:space-y-0">
