@@ -32,11 +32,25 @@
   }
 }
 
+html {
+  /* Prevent zoom issues and ensure proper viewport */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   line-height: 1.4;
+  margin: 0;
+  padding: 0;
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
+  /* Improve rendering on high DPI displays */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -46,6 +60,74 @@ body {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Responsive container fix */
+.container {
+  width: 100%;
+  max-width: 100vw;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Mobile responsive tweaks */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Tablet responsive tweaks */
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+/* Better zoom support and layout fixes */
+@media (min-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+  
+  /* Optimize layout for 100% zoom */
+  .main-content {
+    max-width: calc(100vw - 20rem);
+  }
+  
+  /* Fix container sizing */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* Extra large screens optimization */
+@media (min-width: 1400px) {
+  body {
+    font-size: 16px;
+  }
+  
+  .container {
+    max-width: 1320px;
+  }
+}
+
+/* High DPI screen adjustments */
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
 }
 
 .scrollbar-hide::-webkit-scrollbar {

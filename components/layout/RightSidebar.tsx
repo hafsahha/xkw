@@ -34,14 +34,14 @@ export default function RightSidebar() {
   return (
     <div className="w-80 hidden lg:block p-4 space-y-6">
       {/* Search Bar */}
-      <div className="sticky top-0 bg-white pb-4" suppressHydrationWarning>
-        <div className="relative" suppressHydrationWarning>
+      <div className="sticky top-0 bg-white pb-4">
+        <div className="relative">
           <input
             type="text"
             placeholder="Search XKW"
             className="w-full bg-gray-100 rounded-full py-3 px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-colors placeholder-gray-600"
           />
-          <div className="absolute left-4 top-1/2 transform -translate-y-1/2" suppressHydrationWarning>
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
             <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -50,11 +50,11 @@ export default function RightSidebar() {
       </div>
 
       {/* Trending Topics */}
-      <div className="bg-gray-50 rounded-2xl p-4" suppressHydrationWarning>
+      <div className="bg-gray-50 rounded-2xl p-4">
         <h3 className="text-xl font-bold mb-4 text-black">What's happening</h3>
-        <div className="space-y-3" suppressHydrationWarning>
+        <div className="space-y-3">
           {trendingTopics.map((trend, index) => (
-            <div key={index} className="cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors" suppressHydrationWarning>
+            <div key={index} className="cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors">
               <div className="text-gray-500 text-sm">Trending in Technology</div>
               <div className="font-semibold text-black">{trend.topic}</div>
               <div className="text-gray-500 text-sm">{trend.posts}</div>
@@ -67,14 +67,14 @@ export default function RightSidebar() {
       </div>
 
       {/* Suggested Users */}
-      <div className="bg-gray-50 rounded-2xl p-4" suppressHydrationWarning>
+      <div className="bg-gray-50 rounded-2xl p-4">
         <h3 className="text-xl font-bold mb-4 text-black">Who to follow</h3>
-        <div className="space-y-4" suppressHydrationWarning>
+        <div className="space-y-4">
           {suggestedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between" suppressHydrationWarning>
-              <div className="flex items-center space-x-3" suppressHydrationWarning>
+            <div key={user.id} className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                <div suppressHydrationWarning>
+                <div>
                   <div className="font-semibold text-sm text-black">{user.name}</div>
                   <div className="text-gray-500 text-sm">{user.username}</div>
                 </div>
@@ -91,8 +91,8 @@ export default function RightSidebar() {
       </div>
 
       {/* Footer Links */}
-      <div className="text-xs text-gray-500 space-y-2" suppressHydrationWarning>
-        <div className="flex flex-wrap gap-x-4 gap-y-1" suppressHydrationWarning>
+      <div className="text-xs text-gray-500 space-y-2">
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
           <a href="#" className="hover:underline">Terms of Service</a>
           <a href="#" className="hover:underline">Privacy Policy</a>
           <a href="#" className="hover:underline">Cookie Policy</a>
