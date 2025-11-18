@@ -1,5 +1,3 @@
-import MainLayout from "@/components/layout/MainLayout";
-
 export default function BookmarksPage() {
   // Mock bookmarked tweets data
   const bookmarkedTweets = [
@@ -101,7 +99,7 @@ export default function BookmarksPage() {
   };
 
   return (
-    <MainLayout>
+    <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
         <div className="flex items-center space-x-4">
@@ -213,6 +211,6 @@ export default function BookmarksPage() {
           ))}
         </div>
       )}
-    </MainLayout>
+    </>
   );
 }

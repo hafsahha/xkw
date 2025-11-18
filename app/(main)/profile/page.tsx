@@ -1,5 +1,4 @@
 "use client";
-import MainLayout from "@/components/layout/MainLayout";
 import { useState } from "react";
 
 export default function ProfilePage() {
@@ -214,7 +213,7 @@ export default function ProfilePage() {
   );
 
   return (
-    <MainLayout>
+    <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
         <div className="flex items-center space-x-4">
@@ -416,6 +415,6 @@ export default function ProfilePage() {
           ))
         )}
       </div>
-    </MainLayout>
+    </>
   );
 }

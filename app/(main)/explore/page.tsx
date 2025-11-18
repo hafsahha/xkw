@@ -1,5 +1,3 @@
-import MainLayout from "@/components/layout/MainLayout";
-
 export default function ExplorePage() {
   const trendingTopics = [
     { rank: 1, topic: "#WebDevelopment", posts: "45.2K posts", category: "Technology" },
@@ -24,7 +22,7 @@ export default function ExplorePage() {
   ];
 
   return (
-    <MainLayout>
+    <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
         <h1 className="text-xl font-bold text-black">Explore</h1>
@@ -155,6 +153,6 @@ export default function ExplorePage() {
           ))}
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 }

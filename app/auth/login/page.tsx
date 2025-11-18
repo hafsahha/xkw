@@ -1,4 +1,3 @@
-import MainLayout from "@/components/layout/MainLayout";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -82,7 +81,7 @@ export default function LoginPage() {
 
           <div className="text-center">
             <span className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              { "Don't have an account? " }
               <Link href="/auth/register" className="font-medium text-pink-600 hover:text-pink-500">
                 Sign up
               </Link>

@@ -1,5 +1,3 @@
-import MainLayout from "@/components/layout/MainLayout";
-
 export default function NotificationsPage() {
   const notifications = [
     {
@@ -102,7 +100,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <MainLayout>
+    <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
         <h1 className="text-xl font-bold text-black">Notifications</h1>
@@ -166,10 +164,10 @@ export default function NotificationsPage() {
           </div>
           <h2 className="text-2xl font-bold mb-2">Nothing to see here — yet</h2>
           <p className="text-gray-500 max-w-sm">
-            When someone likes, retweets, or follows you, you'll see it here.
+            {"When someone likes, retweets, or follows you, you'll see it here."}
           </p>
         </div>
       )}
-    </MainLayout>
+    </>
   );
 }
