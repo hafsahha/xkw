@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const usersCollection = database?.collection("users");
 
     const searchParams = req.nextUrl.searchParams;
-    const replyRef = searchParams.get("repref");
+    const username = searchParams.get("username");
     const id = searchParams.get("id");
 
     if (tweetCollection && usersCollection) {
@@ -18,35 +18,22 @@ export async function GET(req: NextRequest) {
         if (id) {
             const tweet = await tweetCollection.findOne({ tweetId: id });
             if (tweet) {
-                const author = await usersCollection.findOne({ _id: tweet.author });
-                if (author) {
-                    const { _id, userId, email, password, stats, createdAt, ...sanitizedAuthor } = author;
-                    return NextResponse.json({ ...tweet, author: sanitizedAuthor });
-                }
-                return NextResponse.json({ ...tweet, author: null });
+                // Fetch replies
+                const replies = await tweetCollection.find({ parentTweetId: tweet._id }).toArray();
+                return NextResponse.json({ ...tweet, replies });
             }
             return NextResponse.json({ message: "Tweet not found" }, { status: 404 });
         }
 
-        let allTweets;
-        if (replyRef) allTweets = await tweetCollection.find({ parentTweetId: replyRef }).toArray(); // Fetch replies to a specific tweet
-        else allTweets = await tweetCollection.find({}).toArray(); // Fetch all tweets
-
-        const authorIdMap = new Map<string, ObjectId>();
-        for (const t of allTweets) if (t?.author) authorIdMap.set(String(t.author), t.author);
-        const authorIds = Array.from(authorIdMap.values());
-        const authors = authorIds.length > 0 ? await usersCollection.find({ _id: { $in: authorIds } }).toArray() : [];
-
-        const authorsById = new Map(authors.map(a => [String(a._id), a]));
-        const serializedTweets = allTweets.map(({ _id, ...rest }) => {
-            const authorObj = authorsById.get(String(rest.author)) || null;
-            if (authorObj) {
-                const { _id, userId, email, password, stats, createdAt, ...sanitizedAuthor } = authorObj;
-                return { ...rest, author: sanitizedAuthor };
-            }
-            return { ...rest, author: null };
-        });
-        return NextResponse.json(serializedTweets);
+        // Fetch tweets by username
+        if (username) {
+            const userTweets = await tweetCollection.find({ "author.username": username }).sort({ createdAt: -1 }).toArray();
+            return NextResponse.json(userTweets);
+        }
+        
+        // Fetch all tweets
+        const allTweets = await tweetCollection.find({}).sort({ createdAt: -1 }).toArray();
+        return NextResponse.json(allTweets);
     }
     return NextResponse.json({ message: "No tweets found" }, { status: 404 });
 }
@@ -62,12 +49,18 @@ export async function POST(req: NextRequest) {
         const { authorId, content, media, tweetRef, type } = body;
         if (!authorId || !content) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const authorObjectId = await usersCollection.findOne({ userId: authorId }).then(user => user?._id);
+        const authorObject = await usersCollection.findOne({ userId: authorId });
+        const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
         const newTweet = {
-            author: authorObjectId,
+            author: {
+                userId: authorObject?.userId,
+                name: authorObject?.name,
+                username: authorObject?.username,
+                avatar: authorObject?.media.profileImage
+            },
             content,
             media: media || [],
-            parentTweetId: tweetRef || null,
+            parentTweetId: refObject?._id,
             type: type || "Original",
             stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
             createdAt: new Date().toISOString()

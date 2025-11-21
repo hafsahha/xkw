@@ -6,12 +6,12 @@ export async function GET(req: NextRequest) {
     const usersCollection = database?.collection("users");
 
     const searchParams = req.nextUrl.searchParams;
-    const id = searchParams.get("id");
+    const username = searchParams.get("username");
     const limit = searchParams.get("limit");
 
     if (usersCollection) {
-        if (id) {
-            const userDoc = await usersCollection.findOne({ userId: id });
+        if (username) {
+            const userDoc = await usersCollection.findOne({ username: username });
             if (userDoc) {
                 const { _id, password, ...serializedUser } = userDoc;
                 return NextResponse.json(serializedUser);
