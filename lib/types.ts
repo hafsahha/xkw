@@ -28,11 +28,17 @@ export interface PostStats {
 
 export interface Post {
     tweetId: string;
-    author: User;
+    author: {
+        userId: string;
+        name: string;
+        username: string;
+        avatar: string;
+    };
     content: string;
     media: string[];
     parentTweetId: Post | null;
     type: "Reply" | "Retweet" | "Quote" | "Original";
     stats: PostStats;
+    replies?: Post[];
     createdAt: string;
 }
