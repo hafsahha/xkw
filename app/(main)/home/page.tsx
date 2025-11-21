@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import TweetComposer from "@/components/tweet/TweetComposer";
-import TweetFeed from "@/components/tweet/TweetFeed";
 import { Post, User } from "@/lib/types";
+import TweetComposer from "@/components/tweet/TweetComposer"; 
+import TweetCard from "@/components/tweet/TweetCard";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'foryou' | 'following'>('foryou');
@@ -17,8 +17,8 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    async function fetchUser(userId: string) {
-      const response = await fetch('/api/user?id=' + userId);
+    async function fetchUser(username: string) {
+      const response = await fetch('/api/user?username=' + username);
       const data = await response.json();
       setCurrentUser(data as User);
     }
@@ -66,7 +66,38 @@ export default function Home() {
       {currentUser ? <TweetComposer user={currentUser} /> : <TweetComposer loading />}
 
       {/* Tweet Feed */}
-      {tweets ? <TweetFeed tweets={tweets} /> : <TweetFeed loading />}
+      {tweets ? (
+        <div className="divide-y divide-gray-200">
+          {tweets!.map((tweet, _) => <TweetCard key={_} tweet={tweet} />)}
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-200">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="p-4 animate-pulse">
+              <div className="flex space-x-3">
+                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex space-x-2">
+                    <div className="h-4 bg-gray-300 rounded w-36"></div>
+                    <div className="h-4 bg-gray-300 rounded w-20"></div>
+                    <div className="h-4 bg-gray-300 rounded w-10"></div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="h-4 bg-gray-300 rounded"></div>
+                    <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                  </div>
+                  <div className="flex w-full items-center justify-between mt-3">
+                    <div className="h-4 bg-gray-300 rounded w-10"></div>
+                    <div className="h-4 bg-gray-300 rounded w-10"></div>
+                    <div className="h-4 bg-gray-300 rounded w-10"></div>
+                    <div className="h-4 bg-gray-300 rounded w-20"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
