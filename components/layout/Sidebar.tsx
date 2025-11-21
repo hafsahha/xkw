@@ -1,23 +1,29 @@
 "use client";
 import { Bell, Bookmark, House, Plus, Search, User2 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { User } from "@/lib/types";
 import NewPostModal from "@/components/NewPostModal";
 import Link from "next/link";
 import Image from "next/image";
 
-const navigationItems = [
-  { name: "Home", href: "/home", icon: House },
-  { name: "Explore", href: "/explore", icon: Search },
-  { name: "Notifications", href: "/notifications", icon: Bell },
-  { name: "Bookmarks", href: "/bookmarks", icon: Bookmark },
-  { name: "Profile", href: "/profile", icon: User2 },
-];
-
 export default function Sidebar({ onClose, user }: { onClose?: () => void, user: User | null }) {
+  const router = useRouter();
   const pathname = usePathname();
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
+  
+  const navigationItems = [
+    { name: "Home", href: "/home", icon: House },
+    { name: "Explore", href: "/explore", icon: Search },
+    { name: "Notifications", href: "/notifications", icon: Bell },
+    { name: "Bookmarks", href: "/bookmarks", icon: Bookmark },
+    { name: "Profile", href: user ? `/profile/${user!.username}` : "/profile", icon: User2 },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('loggedUser');
+    router.push('/')
+  }
 
   return (
     <aside className="lg:w-64 md:w-20 w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
@@ -112,22 +118,13 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
           
           {/* Auth Links */}
           <div className="flex md:flex-col lg:flex-row space-x-2 md:space-x-0 lg:space-x-2 md:space-y-2 lg:space-y-0">
-            <Link 
-              href="/auth/login" 
+            <button
+              onClick={handleLogout}
               className="flex-1 text-center py-2 px-4 md:px-2 lg:px-4 border border-pink-500 text-pink-500 rounded-full text-sm font-semibold hover:bg-pink-50 transition-colors"
-              title="Login"
+              title="Logout"
             >
-              <span className="md:hidden lg:inline">Login</span>
-              <span className="hidden md:inline lg:hidden">L</span>
-            </Link>
-            <Link 
-              href="/auth/register" 
-              className="flex-1 text-center py-2 px-4 md:px-2 lg:px-4 bg-pink-500 text-white rounded-full text-sm font-semibold hover:bg-pink-600 transition-colors"
-              title="Register"
-            >
-              <span className="md:hidden lg:inline">Register</span>
-              <span className="hidden md:inline lg:hidden">R</span>
-            </Link>
+              <span className="md:hidden lg:inline">Logout</span>
+            </button>
           </div>
         </div>
       </div>
