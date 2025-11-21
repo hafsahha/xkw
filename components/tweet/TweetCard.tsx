@@ -3,6 +3,7 @@ import { Bookmark, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "l
 import { useState } from "react";
 import { Post } from "@/lib/types";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function TweetCard({ tweet }: { tweet: Post }) {
   const [isLiked, setIsLiked] = useState(false);
@@ -71,16 +72,20 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
 
       <div className="flex space-x-3">
         {/* Avatar */}
-        <Image src={'/img/' + tweet.author.media.profileImage} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+        <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()}>
+          <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+        </Link>
         
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center space-x-1">
-            <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-              {tweet.author.name}
-            </h3>
-            <span className="text-gray-500">@{tweet.author.username}</span>
+            <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1">
+              <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                {tweet.author.name}
+              </h3>
+              <span className="text-gray-500">@{tweet.author.username}</span>
+            </Link>
             <span className="text-gray-500">·</span>
             <time className="text-gray-500 text-sm">
               {formatTime(tweet.createdAt)}

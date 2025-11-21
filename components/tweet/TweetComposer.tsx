@@ -45,7 +45,7 @@ export default function TweetComposer({ user, loading } : { user?: User, loading
   }
 
   return (
-    <div className="border-b border-gray-200 p-4 pb-2">
+    <div className={`border-b border-gray-200 p-4 ${isExpanded ? 'pb-2' : ''}`}>
       <form onSubmit={handleSubmit}>
         <div className="flex space-x-3">
           {/* Avatar */}
