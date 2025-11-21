@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { User } from "@/lib/types";
-import { ChevronDown } from "lucide-react";
 
 export default function Landing() {
   const [loggedUser, setLoggedUser] = useState<string>('none');
@@ -57,7 +57,7 @@ export default function Landing() {
             <option value="0">Select User</option>
             {useroptions.map((user) => (
               <option key={user.userId} value={user.userId}>
-                {user.name} (@{user.username})
+                {user.username} (@{user.username})
               </option>
             ))}
           </select>

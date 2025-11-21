@@ -1,8 +1,36 @@
 "use client";
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { User } from "@/lib/types";
+import Image from "next/image";
 
-export default function ProfilePage() {
+export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+  const [userData, setUserData] = useState<User | null>(null);
+  const [isMyself, setIsMyself] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("Posts");
+  const { username } = React.use(params);
+
+  useEffect(() => {
+    async function fetchUserData() {
+      const response = await fetch('/api/user?username=' + username);
+      const data = await response.json();
+      setUserData(data as User);
+    }
+    fetchUserData();
+    const storedUser = localStorage.getItem('loggedUser');
+    const t = setTimeout(() => setIsMyself(storedUser === username), 0);
+    return () => clearTimeout(t);
+  }, [username]);
+
+  if (!userData) {
+    return (
+      <div className="p-4 animate-pulse">
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="w-8 h-8 bg-gray-300 rounded-full" />
+        </div>
+      </div>
+    )
+  }
   
   const user = {
     id: "user123",
@@ -215,16 +243,14 @@ export default function ProfilePage() {
   return (
     <>
       {/* Header */}
-      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
+      <div className="sticky top-0 px-4 py-1 bg-white/50 backdrop-blur-md border-b border-gray-200 z-10">
         <div className="flex items-center space-x-4">
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black lg:hidden">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black">
+            <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-black">{user.name}</h1>
-            <p className="text-gray-600 text-sm">{user.stats.tweets} posts</p>
+            <h1 className="text-xl font-bold text-black">{userData.name}</h1>
+            <p className="text-gray-600 text-sm">{userData.stats.tweetCount} posts</p>
           </div>
         </div>
       </div>
@@ -232,68 +258,69 @@ export default function ProfilePage() {
       {/* Profile Header */}
       <div className="relative">
         {/* Cover Photo */}
-        <div className="h-32 sm:h-48 bg-gradient-to-r from-blue-400 to-purple-500"></div>
+        {userData.media.bannerImage ?
+          <Image
+            src={`/img/${userData.media.bannerImage}`} alt="Cover Photo"
+            width={1000} height={300}
+            className="h-56 w-full object-cover"
+          />
+        :
+          <div className="h-48 bg-gradient-to-r from-blue-400 to-purple-500"></div>
+        }
         
         {/* Profile Info */}
         <div className="px-4 pb-4">
           {/* Avatar */}
-          <div className="relative -mt-12 sm:-mt-16 mb-4">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-300 rounded-full border-4 border-white"></div>
-          </div>
+          <Image
+            src={`/img/${userData.media.profileImage}`} alt="Profile Avatar"
+            className="relative -mt-20 mb-4 w-40 h-40 bg-gray-300 rounded-full border-4 border-white"
+            width={160} height={160}
+          />
 
           {/* Edit Profile Button */}
-          <div className="flex justify-end mb-4">
-            <button 
-              onClick={() => window.location.href = '/profile/edit'}
-              className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
-            >
-              Edit profile
-            </button>
+          <div className="relative -mt-20 flex justify-end mb-10">
+            {isMyself ? (
+              <button 
+                onClick={() => window.location.href = '/profile/edit'}
+                className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Edit profile
+              </button>
+            ) : (
+              <button 
+                onClick={() => alert('Follow/unfollow functionality not implemented yet.')}
+                className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Follow
+              </button>
+            )}
           </div>
 
           {/* User Info */}
           <div className="space-y-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-black">{user.name}</h1>
-              <p className="text-gray-500 text-black">@{user.username}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-black">{userData.name}</h1>
+              <p className="text-gray-500 text-black">@{userData.username}</p>
             </div>
 
-            <p className="text-gray-900 text-sm sm:text-base">{user.bio}</p>
-
+            <p className="text-gray-900 text-sm sm:text-base">{userData.bio}</p>
             <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm">
-              {user.location && (
-                <div className="flex items-center space-x-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="truncate">{user.location}</span>
-                </div>
-              )}
-              {user.website && (
-                <div className="flex items-center space-x-1 min-w-0">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <a href={user.website} className="text-pink-500 hover:underline truncate">{user.website}</a>
-                </div>
-              )}
               <div className="flex items-center space-x-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>Joined {user.joinDate}</span>
+                <span>Joined {new Date(userData.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
               </div>
             </div>
 
             {/* Stats */}
             <div className="flex space-x-6">
               <div className="flex space-x-1">
-                <span className="font-semibold">{user.stats.following}</span>
+                <span className="font-semibold">{userData.stats.following}</span>
                 <span className="text-gray-500">Following</span>
               </div>
               <div className="flex space-x-1">
-                <span className="font-semibold">{user.stats.followers}</span>
+                <span className="font-semibold">{userData.stats.followers}</span>
                 <span className="text-gray-500">Followers</span>
               </div>
             </div>

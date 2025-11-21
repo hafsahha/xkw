@@ -24,8 +24,8 @@ export default function Layout({ children }: { children: Readonly<React.ReactNod
   }, [router])
 
   useEffect(() => {
-    async function fetchUser(userId: string) {
-      const response = await fetch('/api/user?id=' + userId);
+    async function fetchUser(username: string) {
+      const response = await fetch('/api/user?username=' + username);
       const data = await response.json();
       setCurrentUser(data as User);
       console.log(data);
