@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
-import db from "@/lib/db";
 import { createHmac } from "crypto";
+import db from "@/lib/db";
 
 // Fetch tweets (single or all)
 export async function GET(req: NextRequest) {
@@ -27,7 +26,9 @@ export async function GET(req: NextRequest) {
 
         // Fetch tweets by username
         if (username) {
-            const userTweets = await tweetCollection.find({ "author.username": username }).sort({ createdAt: -1 }).toArray();
+            const includeReplies = searchParams.get("includeReplies") === "true"; // Fetch replies if specified
+            const query = includeReplies ? { "author.username": username } : { "author.username": username, type: "Original" };
+            const userTweets = await tweetCollection.find(query).sort({ createdAt: -1 }).toArray();
             return NextResponse.json(userTweets);
         }
         
