@@ -16,21 +16,21 @@ export async function GET(req: NextRequest) {
         try {
             if (username && postId) {
                 // Check if specific user bookmarked specific post
-                const bookmark = await bookmarksCollection.findOne({ username, postId });
+                const bookmark = await bookmarksCollection.findOne({ bookmarkedBy: username, postId: postId });
                 return NextResponse.json({ 
                     bookmarked: !!bookmark,
                     bookmark: bookmark || null 
                 }, { status: 200 });
             } else if (username) {
                 // Get all bookmarks by specific user
-                const bookmarks = await bookmarksCollection.find({ username }).toArray();
+                const bookmarks = await bookmarksCollection.find({ bookmarkedBy: username }).toArray();
                 return NextResponse.json({ 
                     bookmarks,
                     count: bookmarks.length 
                 }, { status: 200 });
             } else if (postId) {
                 // Get all bookmarks for specific post
-                const bookmarks = await bookmarksCollection.find({ postId }).toArray();
+                const bookmarks = await bookmarksCollection.find({ postId: postId }).toArray();
                 return NextResponse.json({ 
                     bookmarks,
                     count: bookmarks.length 
@@ -56,13 +56,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "Database connection failed" }, { status: 500 });
     }
     const bookmarksCollection = database?.collection("bookmarks");
+    const tweetCollection = database?.collection("tweets");
 
-    if (bookmarksCollection) {
+    if (bookmarksCollection && tweetCollection) {
         const body = await req.json();
         const { username, postId } = body;
         if (!username || !postId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const existingBookmark = await bookmarksCollection.findOne({ username: username, postId: postId });
+        const tweetObject = await tweetCollection.findOne({ tweetId: postId });
+        if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
+
+        const existingBookmark = await bookmarksCollection.findOne({ bookmarkedBy: username, tweetId: tweetObject._id });
         if (existingBookmark) {
             // If bookmark exists, remove it (unbookmark)
             await bookmarksCollection.deleteOne({ _id: existingBookmark._id });
@@ -70,8 +74,8 @@ export async function POST(req: NextRequest) {
         } else {
             // If bookmark doesn't exist, create it
             const newBookmark = {
-                username: username,
-                postId: postId,
+                tweetId: tweetObject._id,
+                bookmarkedBy: username,
                 createdAt: new Date().toISOString(),
             };
             await bookmarksCollection.insertOne(newBookmark);

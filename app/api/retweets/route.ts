@@ -16,21 +16,21 @@ export async function GET(req: NextRequest) {
         try {
             if (username && postId) {
                 // Check if specific user retweeted specific post
-                const retweet = await retweetsCollection.findOne({ username, postId });
+                const retweet = await retweetsCollection.findOne({ retweetedBy: username, postId: postId });
                 return NextResponse.json({ 
                     retweeted: !!retweet,
                     retweet: retweet || null 
                 }, { status: 200 });
             } else if (username) {
                 // Get all retweets by specific user
-                const retweets = await retweetsCollection.find({ username }).toArray();
+                const retweets = await retweetsCollection.find({ retweetedBy: username }).toArray();
                 return NextResponse.json({ 
                     retweets,
                     count: retweets.length 
                 }, { status: 200 });
             } else if (postId) {
                 // Get all retweets for specific post
-                const retweets = await retweetsCollection.find({ postId }).toArray();
+                const retweets = await retweetsCollection.find({ postId: postId }).toArray();
                 return NextResponse.json({ 
                     retweets,
                     count: retweets.length 
@@ -56,25 +56,31 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "Database connection failed" }, { status: 500 });
     }
     const retweetsCollection = database?.collection("retweets");
+    const tweetCollection = database?.collection("tweets");
 
-    if (retweetsCollection) {
+    if (retweetsCollection && tweetCollection) {
         const body = await req.json();
         const { username, postId } = body;
         if (!username || !postId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const existingRetweet = await retweetsCollection.findOne({ username: username, postId: postId });
+        const tweetObject = await tweetCollection.findOne({ tweetId: postId });
+        if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
+
+        const existingRetweet = await retweetsCollection.findOne({ retweetedBy: username, tweetId: tweetObject._id });
         if (existingRetweet) {
             // If retweet exists, remove it (unretweet)
             await retweetsCollection.deleteOne({ _id: existingRetweet._id });
+            await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.retweets": -1 } });
             return NextResponse.json({ message: "Retweet removed successfully" }, { status: 200 });
         } else {
             // If retweet doesn't exist, create it
             const newRetweet = {
-                username: username,
-                postId: postId,
+                tweetId: tweetObject._id,
+                retweetedBy: username,
                 createdAt: new Date().toISOString(),
             };
             await retweetsCollection.insertOne(newRetweet);
+            await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.retweets": 1 } });
             return NextResponse.json({ message: "Retweet added successfully" }, { status: 201 });
         }
     }
