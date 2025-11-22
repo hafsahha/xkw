@@ -56,8 +56,8 @@ export default function Landing() {
           >
             <option value="0">Select User</option>
             {useroptions.map((user) => (
-              <option key={user.userId} value={user.userId}>
-                {user.username} (@{user.username})
+              <option key={user.userId} value={user.username}>
+                {user.userId} (@{user.username})
               </option>
             ))}
           </select>
