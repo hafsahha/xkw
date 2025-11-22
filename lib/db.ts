@@ -7,19 +7,17 @@ const client = new MongoClient(process.env.MONGO_URI, {
         version: ServerApiVersion.v1,
         strict: true,
         deprecationErrors: true,
-    },
-    connectTimeoutMS: 10000,
-    serverSelectionTimeoutMS: 5000,
+    }
 });
 
 const db: Promise<Db> = client.connect()
     .then(connectedClient => {
         console.log("Connected to MongoDB");
-        return connectedClient.db("twitter_clone");
+        return connectedClient.db("dbX");
     })
     .catch(error => {
         console.error("DB Connection Error:", error);
-        return null;
+        process.exit(1);
     });
 
 export default db;
