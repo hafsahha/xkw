@@ -31,7 +31,7 @@ export default function Home() {
       const data = await response.json();
       setTweets(data as Post[]);
     }
-    fetchFeed();
+    if (loggedUser) fetchFeed();
   }, [loggedUser])
 
   return (

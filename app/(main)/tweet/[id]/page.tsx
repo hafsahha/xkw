@@ -34,7 +34,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     async function fetchUser(username: string) {
-      const response = await fetch('/api/user?username=' + username);
+      const response = await fetch(`/api/user?username=${username}`);
       const data = await response.json();
       setCurrentUser(data as User);
     }
@@ -48,7 +48,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
       setTweetStats(data.stats as PostStats)
       setTweet(data as Post);
     }
-    fetchTweet();
+    if (loggedUser) fetchTweet();
   }, [id, loggedUser]);
 
   return (
