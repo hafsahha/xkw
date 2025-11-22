@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
         const tweetObject = await tweetCollection.findOne({ tweetId: postId });
         if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
 
-        const existingLike = await likesCollection.findOne({ username: username, postId: postId });
+        const existingLike = await likesCollection.findOne({ likedBy: username, tweetId: tweetObject._id });
         if (existingLike) {
             // If like exists, remove it (unlike)
             await likesCollection.deleteOne({ _id: existingLike._id });
