@@ -1,60 +1,32 @@
-import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
+import db from "@/lib/db";
 
+// Get tweet retweeters (users who retweeted a specific tweet, excluding quotes)
 export async function GET(req: NextRequest) {
     const database = await db;
-    if (!database) {
-        return NextResponse.json({ message: "Database connection failed" }, { status: 500 });
-    }
-    const retweetsCollection = database?.collection("retweets");
-    
-    if (retweetsCollection) {
-        const { searchParams } = new URL(req.url);
-        const username = searchParams.get('username');
-        const postId = searchParams.get('postId');
-        
-        try {
-            if (username && postId) {
-                // Check if specific user retweeted specific post
-                const retweet = await retweetsCollection.findOne({ retweetedBy: username, postId: postId });
-                return NextResponse.json({ 
-                    retweeted: !!retweet,
-                    retweet: retweet || null 
-                }, { status: 200 });
-            } else if (username) {
-                // Get all retweets by specific user
-                const retweets = await retweetsCollection.find({ retweetedBy: username }).toArray();
-                return NextResponse.json({ 
-                    retweets,
-                    count: retweets.length 
-                }, { status: 200 });
-            } else if (postId) {
-                // Get all retweets for specific post
-                const retweets = await retweetsCollection.find({ postId: postId }).toArray();
-                return NextResponse.json({ 
-                    retweets,
-                    count: retweets.length 
-                }, { status: 200 });
-            } else {
-                // Get all retweets
-                const retweets = await retweetsCollection.find({}).toArray();
-                return NextResponse.json({ 
-                    retweets,
-                    count: retweets.length 
-                }, { status: 200 });
-            }
-        } catch (error) {
-            return NextResponse.json({ message: "Error fetching retweets", error }, { status: 500 });
+    const retweetCollection = database?.collection("retweets");
+    const userCollection = database?.collection("users");
+
+    if (retweetCollection && userCollection) {
+        const searchParams = req.nextUrl.searchParams;
+        const id = searchParams.get("id");
+
+        if (id) {
+            const tweetRetweets = await retweetCollection.find({ tweetId: new ObjectId(id) }).toArray();
+            const detailedRetweets = await Promise.all(tweetRetweets.map(async (retweet) => {
+                return await userCollection.findOne({ username: retweet.retweetedBy });
+            }));
+            return NextResponse.json(detailedRetweets);
         }
+        return NextResponse.json({ message: "Missing tweet ID" }, { status: 400 });
     }
     return NextResponse.json({ message: "Database connection error" }, { status: 500 });
 }
 
+// Toggle retweet/unretweet for a tweet
 export async function POST(req: NextRequest) {
     const database = await db;
-    if (!database) {
-        return NextResponse.json({ message: "Database connection failed" }, { status: 500 });
-    }
     const retweetsCollection = database?.collection("retweets");
     const tweetCollection = database?.collection("tweets");
 
