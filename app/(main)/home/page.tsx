@@ -27,12 +27,12 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchFeed() {
-      const response = await fetch('/api/post');
+      const response = await fetch('/api/post?currentUser=' + loggedUser);
       const data = await response.json();
       setTweets(data as Post[]);
     }
     fetchFeed();
-  }, [])
+  }, [loggedUser])
 
   return (
     <>
