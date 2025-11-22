@@ -1,31 +1,51 @@
 "use client";
 import { Bookmark, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Post } from "@/lib/types";
+import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function TweetCard({ tweet }: { tweet: Post }) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isRetweeted, setIsRetweeted] = useState(false);
+  const optionsRef = useRef<HTMLDivElement | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [localStats, setLocalStats] = useState(tweet.stats);
+  const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
+  const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted);
+  const [isLiked, setIsLiked] = useState(tweet.isLiked);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('loggedUser');
+    const t = setTimeout(() => setCurrentUser(storedUser), 0);
+    return () => clearTimeout(t);
+  }, [])
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!optionsRef.current) return;
+      if (target && !optionsRef.current.contains(target)) setIsOptionOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
 
   const handleLike = () => {
     setIsLiked(!isLiked);
-    setLocalStats(prev => ({
-      ...prev,
-      likes: isLiked ? prev.likes - 1 : prev.likes + 1
-    }));
-    // TODO: API call
+    setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }));
+
+    fetch('/api/like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+    });
   };
 
   const handleRetweet = () => {
     setIsRetweeted(!isRetweeted);
-    setLocalStats(prev => ({
-      ...prev,
-      retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1
-    }));
+    setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
+    
     // TODO: API call
   };
 
@@ -53,14 +73,10 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
     return `${minutes}m`;
   };
 
-  const handleTweetClick = () => {
-    window.location.href = `/tweet/${tweet.tweetId}`;
-  };
-
   return (
     <article 
       className="border-b border-gray-200 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
-      onClick={handleTweetClick}
+      onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
     >
       {/* Retweet indicator */}
       {tweet.type === 'Retweet' && (
@@ -72,7 +88,7 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
 
       <div className="flex space-x-3">
         {/* Avatar */}
-        <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()}>
+        <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="h-fit">
           <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
         </Link>
         
@@ -90,16 +106,37 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
             <time className="text-gray-500 text-sm">
               {formatTime(tweet.createdAt)}
             </time>
-            <div className="ml-auto">
-              <button className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+            <div ref={optionsRef} className="relative ml-auto">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
+              >
                 <Ellipsis className="h-4 w-4" />
               </button>
+              {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
             </div>
           </div>
 
           {/* Tweet Content */}
-          <div className="mt-1">
+          <div className="flex flex-col mt-1 gap-1">
             <p className="text-gray-900 whitespace-pre-wrap">{tweet.content}</p>
+            {tweet.media.length > 0 && (
+              <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
+                {tweet.media.map((mediaUrl, idx) => (
+                  <Link
+                    key={idx} onClick={(e) => e.stopPropagation()}
+                    href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
+                    className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                  >
+                    <Image
+                      src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                      className={`${tweet.media.length > 1 ? 'h-full w-full' : 'max-h-100 max-w-full w-auto h-auto rounded-xl'} object-cover`}
+                      width={1000} height={1000}
+                    />
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -112,9 +149,7 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
               <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
                 <MessageCircleMore className="h-4 w-4" />
               </div>
-              {localStats.replies > 0 && (
-                <span className="text-sm">{formatNumber(localStats.replies)}</span>
-              )}
+                <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
             </button>
 
             {/* Retweet */}
@@ -127,9 +162,7 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
               <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
                 <Repeat2 className="h-4 w-4" />
               </div>
-              {localStats.retweets > 0 && (
-                <span className="text-sm">{formatNumber(localStats.retweets)}</span>
-              )}
+              <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
             </button>
 
             {/* Like */}
@@ -142,9 +175,7 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
               <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
                 <Heart className={`h-4 w-4 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
               </div>
-              {localStats.likes > 0 && (
-                <span className="text-sm">{formatNumber(localStats.likes)}</span>
-              )}
+              <span className="text-sm">{localStats.likes > 0 ? formatNumber(localStats.likes) : ' '}</span>
             </button>
 
             <div className="flex items-center space-x-2">

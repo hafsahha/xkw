@@ -1,31 +1,36 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { ArrowLeft, Bookmark, Ellipsis, Heart, MessageCircleMore, Repeat2 } from "lucide-react";
-import { Post, User } from "@/lib/types";
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Bookmark, Ellipsis, Heart, Loader2, MessageCircleMore, Repeat2 } from "lucide-react";
+import { Post, PostStats, User } from "@/lib/types";
+import FloatingModal from "@/components/ui/FloatingModal";
 import TweetCard from "@/components/tweet/TweetCard";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function TweetPage({ params }: { params: Promise<{ id: string }> }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const optionsRef = useRef<HTMLDivElement | null>(null);
+  const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [loggedUser, setLoggedUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [tweetStats, setTweetStats] = useState<PostStats | null>(null)
   const [tweet, setTweet] = useState<Post | null>(null);
   const { id } = React.use(params);
   
-  useEffect(() => {
-    async function fetchTweet() {
-      const response = await fetch('/api/post?id=' + id);
-      const data = await response.json();
-      setTweet(data as Post);
-    }
-    fetchTweet();
-  }, [id]);
-
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
     const t = setTimeout(() => setLoggedUser(storedUser), 0);
     return () => clearTimeout(t);
   }, [])
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!optionsRef.current) return;
+      if (target && !optionsRef.current.contains(target)) setIsOptionOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
 
   useEffect(() => {
     async function fetchUser(username: string) {
@@ -35,16 +40,16 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     }
     if(loggedUser) fetchUser(loggedUser);
   }, [loggedUser])
-
-  if (!tweet) {
-    return (
-      <div className="p-4 animate-pulse">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-8 h-8 bg-gray-300 rounded-full" />
-        </div>
-      </div>
-    )
-  }
+  
+  useEffect(() => {
+    async function fetchTweet() {
+      const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
+      const data = await response.json();
+      setTweetStats(data.stats as PostStats)
+      setTweet(data as Post);
+    }
+    fetchTweet();
+  }, [id, loggedUser]);
 
   return (
     <>
@@ -62,57 +67,127 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* Main Tweet */}
-      <article className="p-4 pb-2 border-b border-gray-200">
-        <div className="flex flex-col">
-          <div className="flex space-x-3 mb-2">
-            <Link href={`/profile/${tweet!.author.username}`}>
-              <Image src={`/img/${tweet!.author.avatar}`} className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
-            </Link>
-            <div className="flex w-full justify-between">
-              <div className="flex flex-col space-x-1 mb-2">
-                <Link href={`/profile/${tweet!.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
-                  {tweet!.author.name}
-                </Link>
-                <Link href={`/profile/${tweet!.author.username}`} className="w-fit text-gray-500">
-                  @{tweet!.author.username}
-                </Link>
+      {tweet ? (
+        <article className="p-4 pb-2 border-b border-gray-200">
+          <div className="flex flex-col">
+            <div className="flex space-x-3 mb-2">
+              <Link href={`/profile/${tweet!.author.username}`}>
+                <Image src={`/img/${tweet!.author.avatar}`} className="w-10 h-10 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
+              </Link>
+              <div className="flex w-full justify-between">
+                <div className="flex flex-col space-x-1 mb-2">
+                  <Link href={`/profile/${tweet!.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
+                    {tweet!.author.name}
+                  </Link>
+                  <Link href={`/profile/${tweet!.author.username}`} className="w-fit text-gray-500">
+                    @{tweet!.author.username}
+                  </Link>
+                </div>
+                <div ref={optionsRef} className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
+                    className="relative h-fit text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                    >
+                    <Ellipsis className="h-4 w-4" />
+                  </button>
+                  {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
+                </div>
               </div>
-              <button className="h-fit text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
-                <Ellipsis className="h-4 w-4" />
+            </div>
+            <div className="mb-4">
+              <p className="text-gray-900 text-xl leading-relaxed">{tweet!.content}</p>
+              {tweet.media.length > 0 && (
+                <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
+                  {tweet.media.map((mediaUrl, idx) => (
+                    <Link
+                      key={idx} onClick={(e) => e.stopPropagation()}
+                      href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
+                      className={`h-full w-full ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                    >
+                      <Image
+                        src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                        className={`${tweet.media.length === 1 ? 'rounded-xl' : ''} object-cover`}
+                        width={1000} height={1000}
+                      />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="text-gray-500 mb-2">
+              {new Date(tweet!.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet!.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
+              
+            {/* Interaction Stats */}
+            <div className="flex items-center border-t border-b border-gray-200 text-gray-500 text-sm">
+              <button
+                // onClick={openRetweetsModal}
+                className="px-3 py-2 hover:bg-gray-300"
+              >
+                <span className="font-semibold text-gray-900">{tweetStats!.retweets}</span> Retweets
+              </button>
+              <button
+                // onClick={openQuotesModal}
+                className="px-3 py-2 hover:bg-gray-300"
+              >
+                <span className="font-semibold text-gray-900">{tweetStats!.quotes}</span> Quote Tweets
+              </button>
+              <button
+                // onClick={openLikesModal}
+                className="px-3 py-2 hover:bg-gray-300"
+                >
+              <span className="font-semibold text-gray-900">{tweetStats!.likes}</span> Likes
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-around pt-2 border-gray-200">
+              <button className="p-2 hover:bg-pink-50 rounded-full transition-colors group">
+                <MessageCircleMore className="w-5 h-5 text-gray-500 group-hover:text-pink-500" />
+              </button>
+              <button className="p-2 hover:bg-green-50 rounded-full transition-colors group">
+                <Repeat2 className={`w-5 h-5 group-hover:text-green-500 ${tweet!.isRetweeted ? 'text-green-500 fill-green-500' : 'text-gray-500'}`} />
+              </button>
+              <button className="p-2 hover:bg-red-50 rounded-full transition-colors group">
+                <Heart className={`w-5 h-5 group-hover:text-red-500 ${tweet!.isLiked ? 'text-red-500 fill-red-500' : 'text-gray-500'}`} />
+              </button>
+              <button className="p-2 hover:bg-blue-50 rounded-full transition-colors group">
+                <Bookmark className={`w-5 h-5 group-hover:text-blue-500 ${tweet!.isBookmarked ? 'text-blue-500 fill-blue-500' : 'text-gray-500'}`} />
               </button>
             </div>
           </div>
-          <div className="mb-4">
-            <p className="text-gray-900 text-xl leading-relaxed">{tweet!.content}</p>
-          </div>
-          <div className="text-gray-500 mb-2">
-            {new Date(tweet!.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet!.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </div>
-            
-          {/* Interaction Stats */}
-          <div className="flex items-center space-x-6 py-2 border-t border-b border-gray-200 text-gray-500 text-sm">
-            <span><span className="font-semibold text-gray-900">{tweet!.stats.retweets}</span> Retweets</span>
-            <span><span className="font-semibold text-gray-900">{tweet!.stats.quotes}</span> Quote Tweets</span>
-            <span><span className="font-semibold text-gray-900">{tweet!.stats.likes}</span> Likes</span>
+        </article>
+      ) : (
+        <div className="animate-pulse p-4 pb-2 border-b border-gray-200">
+          <div className="flex space-x-3 mb-4">
+            <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-36 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-24"></div>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-around pt-2 border-gray-200">
-            <button className="p-2 hover:bg-pink-50 rounded-full transition-colors group">
-              <MessageCircleMore className="w-5 h-5 text-gray-500 group-hover:text-pink-500" />
-            </button>
-            <button className="p-2 hover:bg-green-50 rounded-full transition-colors group">
-              <Repeat2 className="w-5 h-5 text-gray-500 group-hover:text-green-500" />
-            </button>
-            <button className="p-2 hover:bg-red-50 rounded-full transition-colors group">
-              <Heart className="w-5 h-5 text-gray-500 group-hover:text-red-500" />
-            </button>
-            <button className="p-2 hover:bg-blue-50 rounded-full transition-colors group">
-              <Bookmark className="w-5 h-5 text-gray-500 group-hover:text-blue-500" />
-            </button>
+          <div className="space-y-3 mb-4">
+            <div className="h-5 bg-gray-200 rounded w-full"></div>
+            <div className="h-5 bg-gray-200 rounded w-10/12"></div>
+          </div>
+
+          <div className="h-4 bg-gray-200 rounded w-40 mb-3"></div>
+
+          <div className="flex items-center space-x-6 py-2 border-t border-b border-gray-200 text-sm">
+            <div className="h-4 bg-gray-200 rounded w-20"></div>
+            <div className="h-4 bg-gray-200 rounded w-28"></div>
+            <div className="h-4 bg-gray-200 rounded w-16"></div>
+          </div>
+
+          <div className="flex items-center justify-around pt-3">
+            <div className="w-9 h-9 bg-gray-200 rounded-full"></div>
+            <div className="w-9 h-9 bg-gray-200 rounded-full"></div>
+            <div className="w-9 h-9 bg-gray-200 rounded-full"></div>
+            <div className="w-9 h-9 bg-gray-200 rounded-full"></div>
           </div>
         </div>
-      </article>
+      )}
 
       {/* Reply Form */}
       <div className="p-4 border-b border-gray-200">
@@ -139,10 +214,14 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Replies */}
       <div className="divide-y divide-gray-200">
-        {tweet!.replies && tweet!.replies.length > 0 ? (
-          tweet!.replies.map((reply, _) => <TweetCard key={_} tweet={reply} />)
+        {tweet ? (
+          tweet!.replies && tweet!.replies.length > 0 ? (
+            tweet!.replies.map((reply, _) => <TweetCard key={_} tweet={reply} />)
+          ) : <p>No replies yet.</p>
         ) : (
-          <p>No replies yet.</p>
+          <div className="flex mt-4 justify-center">
+            <Loader2 className="animate-spin w-6 h-6 text-pink-500" />
+          </div>
         )}
       </div>
     </>
