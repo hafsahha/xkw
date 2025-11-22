@@ -39,6 +39,9 @@ export interface Post {
     parentTweetId: Post | null;
     type: "Reply" | "Retweet" | "Quote" | "Original";
     stats: PostStats;
+    isLiked: boolean;
+    isRetweeted: boolean;
+    isBookmarked: boolean;
     replies?: Post[];
     createdAt: string;
 }
