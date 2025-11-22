@@ -28,7 +28,6 @@ export default function Layout({ children }: { children: Readonly<React.ReactNod
       const response = await fetch('/api/user?username=' + username);
       const data = await response.json();
       setCurrentUser(data as User);
-      console.log(data);
     }
     if(loggedUser) fetchUser(loggedUser);
   }, [loggedUser])
