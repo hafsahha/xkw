@@ -18,9 +18,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-  children,
+  children, modal
 }: Readonly<{
   children: React.ReactNode;
+  modal: React.ReactNode;
 }>) {
   return (
     <html lang="en" className="scrollbar-hide">
@@ -29,6 +30,7 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         {children}
+        {modal}
       </body>
     </html>
   );
