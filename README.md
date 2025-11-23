@@ -71,8 +71,110 @@ Aplikasi ini menggunakan MongoDB sebagai database utama. Berikut adalah struktur
      }
      ```
 
-3. **likes**, **retweets**, dan **bookmarks**:
-   - Koleksi tambahan untuk menyimpan data interaksi pengguna dengan tweet (like, retweet, dan bookmark).
+3. **follows**, **likes**, **retweets**, **bookmarks**, **notifications**, **hashtags**, **timelines**, dan **drafts**:
+   - Koleksi tambahan untuk menyimpan data interaksi pengguna dengan tweet (like, retweet, bookmark, notifikasi, dll.).
+
+### Diagram ER
+
+Berikut adalah diagram ER yang menggambarkan hubungan antar koleksi dalam database:
+
+```mermaid
+erDiagram
+
+    USERS {
+        ObjectId _id
+        string username
+        string email
+        string password
+        object media
+        string name
+        string bio
+        object stats
+        date createdAt
+    }
+
+    TWEETS {
+        ObjectId _id
+        object author
+        string content
+        array media
+        ObjectId parentTweetId
+        string type
+        object stats
+        date createdAt
+    }
+
+    FOLLOWS {
+        ObjectId _id
+        ObjectId followerId
+        ObjectId followingId
+        date createdAt
+    }
+
+    LIKES {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    BOOKMARKS {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    RETWEETS {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    NOTIFICATIONS {
+        ObjectId _id
+        ObjectId receiverId
+        object actor
+        string type
+        ObjectId tweetId
+        boolean isRead
+        date createdAt
+    }
+
+    HASHTAGS {
+        string _id
+        number count
+        date lastUsed
+    }
+
+    TIMELINES {
+        ObjectId _id
+        array tweets
+    }
+
+    DRAFTS {
+        ObjectId _id
+        ObjectId userId
+        string content
+        array media
+        date updatedAt
+    }
+    USERS ||--o{ TWEETS : "writes"
+    USERS ||--o{ FOLLOWS : "follows"
+    USERS ||--o{ LIKES : "likes"
+    USERS ||--o{ BOOKMARKS : "bookmarks"
+    USERS ||--o{ RETWEETS : "retweets"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+
+    TWEETS ||--o{ LIKES : "is liked by"
+    TWEETS ||--o{ RETWEETS : "is retweeted by"
+    TWEETS ||--o{ BOOKMARKS : "is bookmarked by"
+    TWEETS ||--o{ NOTIFICATIONS : "triggers"
+    TWEETS ||--o{ TIMELINES : "appears in"
+
+    TWEETS ||--o| TWEETS : "replies to / quotes"
+```
 
 ## Memulai
 
@@ -121,4 +223,12 @@ Proyek ini dilisensikan di bawah Lisensi MIT. Lihat file LICENSE untuk detail le
 
 ---
 
-XKW adalah proyek yang terinspirasi oleh X/Twitter, dibangun untuk tujuan edukasi dan untuk mengeksplorasi teknologi pengembangan web modern.
+XKW adalah proyek yang terinspirasi oleh X/Twitter, dibangun untuk tujuan edukasi dan untuk mengeksplorasi teknologi pengembangan web modern. Proyek ini dibuat untuk memenuhi tugas mata kuliah Basis Data Non-Relasional.
+
+Proyek ini dikembangkan oleh Kelompok 3:
+
+1. Datuk Daneswara
+2. Hafsah Hamidah
+3. Natasha Adinda
+4. Zakiyah Hasanah
+5. Shizuka Mauli Putri
