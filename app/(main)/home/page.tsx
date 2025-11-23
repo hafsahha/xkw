@@ -36,10 +36,12 @@ export default function Home() {
     const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
 
-    // Filter tweets to include only those from followed users or the current user if in 'following'
+    // Filter tweets to include only those from followed users, the current user, and their retweets
     const filteredTweets = tab === "following"
       ? data.filter((tweet: Post) =>
-          tweet.author.username === loggedUser || currentUser?.following.includes(tweet.author.username)
+          tweet.author.username === loggedUser ||
+          currentUser?.following.includes(tweet.author.username) ||
+          (tweet.type === "Retweet" && currentUser?.following.includes(tweet.parentTweetId?.author.username))
         )
       : data; // For 'For you', show all tweets
 
