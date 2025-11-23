@@ -25,32 +25,39 @@ export default function Home() {
     if(loggedUser) fetchUser(loggedUser);
   }, [loggedUser])
 
-  const fetchFeed = async () => {
+  const fetchFeed = async (tab: 'foryou' | 'following') => {
     const params = new URLSearchParams();
     params.set("currentUser", loggedUser!);
 
-    if (activeTab === "following") {
+    if (tab === "following") {
       params.set("filter", "following"); // Ensure filtering for following tab
     }
 
     const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
 
-    // Filter tweets to include only those from followed users or the current user
-    const filteredTweets = data.filter((tweet: Post) =>
-      tweet.author.username === loggedUser || currentUser?.following.includes(tweet.author.username)
-    );
+    // Filter tweets to include only those from followed users or the current user if in 'following'
+    const filteredTweets = tab === "following"
+      ? data.filter((tweet: Post) =>
+          tweet.author.username === loggedUser || currentUser?.following.includes(tweet.author.username)
+        )
+      : data; // For 'For you', show all tweets
 
     setTweets(filteredTweets);
   }
 
+  const handleTabSwitch = (tab: 'foryou' | 'following') => {
+    setActiveTab(tab);
+    fetchFeed(tab); // Fetch feed dynamically on tab switch
+  };
+
   useEffect(() => {
-    if (loggedUser) fetchFeed();
+    if (loggedUser) fetchFeed(activeTab); // Fetch feed for the initial tab
   }, [loggedUser, activeTab]); // Add activeTab dependency to refetch feed when tab changes
 
   const handleTweetPosted = () => {
     // Refresh feed setelah tweet baru diposting
-    fetchFeed();
+    fetchFeed(activeTab);
   };
 
   return (
@@ -87,7 +94,13 @@ export default function Home() {
       {/* Tweet Feed */}
       {tweets ? (
         <div className="divide-y divide-gray-200">
-          {tweets!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchFeed} />)}
+          {tweets!.map((tweet, index) => (
+            <TweetCard
+              key={`${tweet.tweetId}-${index}`}
+              tweet={tweet}
+              onRetweetSuccess={() => fetchFeed(activeTab)} // Pass the correct function signature
+            />
+          ))}
         </div>
       ) : (
         <div className="divide-y divide-gray-200">
