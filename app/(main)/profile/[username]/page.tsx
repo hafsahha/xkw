@@ -14,24 +14,24 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [activeTab, setActiveTab] = useState("Posts");
   const { username } = React.use(params);
 
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ username: String(username) });
+      if (currentUser) params.set("currentUser", currentUser);
+
+      if (activeTab === "Replies") params.set("includeReplies", "true");
+      else if (activeTab === "Media") params.set("mediaOnly", "true");
+      else if (activeTab === "Likes") params.set("likedOnly", "true");
+
+      const res = await fetch(`/api/post?${params.toString()}`);
+      const data = await res.json();
+      setUserPosts(data as Post[]);
+    } catch { setUserPosts([]) }
+    finally { setLoading(false) }
+  }
+
   useEffect(() => {
-    async function fetchPosts() {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ username: String(username) });
-        if (currentUser) params.set("currentUser", currentUser);
-
-        if (activeTab === "Replies") params.set("includeReplies", "true");
-        else if (activeTab === "Media") params.set("mediaOnly", "true");
-        else if (activeTab === "Likes") params.set("likedOnly", "true");
-
-        const res = await fetch(`/api/post?${params.toString()}`);
-        const data = await res.json();
-        setUserPosts(data as Post[]);
-      } catch { setUserPosts([]) }
-      finally { setLoading(false) }
-    }
-
     if (currentUser) fetchPosts();
   }, [activeTab, username, currentUser]);
 
@@ -177,7 +177,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
       ) : (
         <div className="min-h-screen divide-y divide-gray-200">
-          {userPosts!.map((tweet) => <TweetCard key={tweet.tweetId} tweet={tweet} />)}
+          {userPosts!.map((tweet) => <TweetCard key={tweet.tweetId} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
         </div>
       )}
     </div>

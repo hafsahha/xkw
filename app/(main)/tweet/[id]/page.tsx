@@ -14,6 +14,8 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tweetStats, setTweetStats] = useState<PostStats | null>(null)
   const [tweet, setTweet] = useState<Post | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
   const { id } = React.use(params);
   
   useEffect(() => {
@@ -50,6 +52,43 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     }
     if (loggedUser) fetchTweet();
   }, [id, loggedUser]);
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !loggedUser || !tweet) return;
+
+    setIsReplying(true);
+    try {
+      const response = await fetch("/api/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loggedUser,
+          content: replyText,
+          media: [],
+          tweetRef: tweet.tweetId,
+          type: "Reply"
+        })
+      });
+
+      if (response.ok) {
+        console.log("Reply posted");
+        setReplyText("");
+        
+        // Refresh halaman untuk update replies
+        const refreshResponse = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
+        const refreshData = await refreshResponse.json();
+        setTweet(refreshData);
+        setTweetStats(refreshData.stats as PostStats);
+      } else {
+        alert("Gagal post reply");
+      }
+    } catch (error) {
+      console.error("Error posting reply:", error);
+      alert("Error: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setIsReplying(false);
+    }
+  };
 
   return (
     <>
@@ -199,13 +238,20 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
           }
           <div className="flex-1">
             <textarea 
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
               placeholder="Post your reply"
               className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
               rows={3}
+              disabled={isReplying}
             />
             <div className="flex justify-end mt-2">
-              <button className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-semibold transition-colors">
-                Reply
+              <button 
+                onClick={handleReply}
+                disabled={!replyText.trim() || isReplying || !loggedUser}
+                className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isReplying ? "Replying..." : "Reply"}
               </button>
             </div>
           </div>
