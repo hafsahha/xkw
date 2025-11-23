@@ -10,6 +10,12 @@ export default function Home() {
   const [loggedUser, setLoggedUser] = useState<string | null>(null);
   const [tweets, setTweets] = useState<Post[] | null>(null);
 
+  const fetchFeed = async (tab: 'foryou' | 'following') => {
+    const response = await fetch(`/api/post?currentUser=${loggedUser}`);
+    const data = await response.json();
+    setTweets(data as Post[]);
+  }
+
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
     const t = setTimeout(() => setLoggedUser(storedUser), 0);
@@ -18,20 +24,17 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchUser(username: string) {
-      const response = await fetch('/api/user?username=' + username);
+      const response = await fetch(`/api/user?username=${username}`);
       const data = await response.json();
       setCurrentUser(data as User);
     }
-    if(loggedUser) fetchUser(loggedUser);
+    if (loggedUser) fetchUser(loggedUser);
   }, [loggedUser])
 
   const fetchFeed = async (tab: 'foryou' | 'following') => {
     const params = new URLSearchParams();
-    params.set("currentUser", loggedUser!);
-
-    if (tab === "following") {
-      params.set("filter", "following"); // Ensure filtering for following tab
-    }
+    if (loggedUser) params.set("currentUser", loggedUser);
+    if (tab === "following") params.set("filter", "following");
 
     const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
@@ -48,11 +51,6 @@ export default function Home() {
     setTweets(filteredTweets);
   }
 
-  const handleTabSwitch = (tab: 'foryou' | 'following') => {
-    setActiveTab(tab);
-    fetchFeed(tab); // Fetch feed dynamically on tab switch
-  };
-
   useEffect(() => {
     if (loggedUser) fetchFeed(activeTab); // Fetch feed for the initial tab
   }, [loggedUser, activeTab]); // Add activeTab dependency to refetch feed when tab changes
@@ -68,7 +66,7 @@ export default function Home() {
       <div className="sticky top-15 md:top-0 z-10 bg-white/50 backdrop-blur border-b border-gray-200">
         <div className="flex">
           <button 
-            onClick={() => setActiveTab('foryou')}
+            onClick={() => { setActiveTab('foryou'); fetchFeed('foryou'); }}
             className={`flex-1 py-4 px-1 text-center font-semibold transition-colors ${
               activeTab === 'foryou' 
               ? 'text-pink-600 border-b-2 border-pink-600' 
@@ -78,7 +76,7 @@ export default function Home() {
             For you
           </button>
           <button 
-            onClick={() => setActiveTab('following')}
+            onClick={() => { setActiveTab('following'); fetchFeed('following'); }}
             className={`flex-1 py-4 px-1 text-center font-semibold transition-colors ${
                 activeTab === 'following' 
                 ? 'text-pink-600 border-b-2 border-pink-600' 
@@ -91,7 +89,7 @@ export default function Home() {
       </div>
 
       {/* Tweet Composer */}
-      {currentUser ? <TweetComposer user={currentUser} onTweetPosted={handleTweetPosted} /> : <TweetComposer loading />}
+      {currentUser ? <TweetComposer user={currentUser} onTweetPosted={fetchFeed} /> : <TweetComposer loading />}
 
       {/* Tweet Feed */}
       {tweets ? (

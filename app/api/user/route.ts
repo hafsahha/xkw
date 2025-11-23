@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { createHash } from "crypto";
 
 export async function GET(req: NextRequest) {
     const database = await db;
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
         if (username) {
             const userDoc = await usersCollection.findOne({ username: username });
             if (userDoc) {
-                const { _id, password, ...serializedUser } = userDoc;
+                const { password, ...serializedUser } = userDoc;
 
                 // Ensure followers and following fields are included with default values
                 serializedUser.followers = serializedUser.followers || [];
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
         }
         const allUsers = await usersCollection.find({}).limit(limit ? parseInt(limit) : 100).toArray();
-        const serializedUsers = allUsers.map(({ _id, password, ...rest }) => ({
+        const serializedUsers = allUsers.map(({ password, ...rest }) => ({
             ...rest,
             followers: rest.followers || [],
             following: rest.following || [],
@@ -32,6 +33,40 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(serializedUsers);
     }
 
+}
+
+export async function POST(req: NextRequest) {
+    const database = await db;
+    const usersCollection = database?.collection("users");
+
+    if (usersCollection) {
+        const body = await req.json();
+        const { username, email, password } = body;
+        if (!username || !email || !password) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+
+        const existingUser = await usersCollection.findOne({ $or: [ { username }, { email } ] });
+        if (existingUser) return NextResponse.json({ message: "User already exists" }, { status: 409 });
+
+        const raw = createHash("sha256").update(password).digest("hex");
+        const hashedPassword = createHash("sha256").update(raw).digest("hex");
+
+        // Add user creation logic here (e.g., hashing password, inserting into database)
+        const newUser = {
+            username,
+            email,
+            password : hashedPassword,
+            name: body.name || "",
+            bio: body.bio || "",
+        };
+        // Insert the new user into the database
+        const result = await usersCollection.insertOne(newUser);
+        if (result.insertedId) {
+            const { password, ...userWithoutPassword } = newUser;
+            return NextResponse.json(userWithoutPassword, { status: 201 });
+        } else {
+            return NextResponse.json({ message: "Failed to create user" }, { status: 500 });
+        }
+    }
 }
 
 export async function PATCH(req: NextRequest) {

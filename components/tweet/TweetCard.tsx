@@ -6,7 +6,7 @@ import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, onRetweetSuccess?: () => void }) {
+export default function TweetCard({ tweet, sidebarMode, onRetweetSuccess }: { tweet: Post, sidebarMode?: boolean, onRetweetSuccess?: () => void }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
@@ -14,6 +14,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
   const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted);
   const [isLiked, setIsLiked] = useState(tweet.isLiked);
+  const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
   const [isLoadingLike, setIsLoadingLike] = useState(false);
 
@@ -46,20 +47,16 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
       });
-    } catch (error) {
-      console.error("Like error:", error);
+    } catch {
       setIsLiked(!isLiked);
       setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes + 1 : prev.likes - 1 }));
-    } finally {
-      setIsLoadingLike(false);
-    }
+    } finally { setIsLoadingLike(false) }
   };
 
   const handleRetweet = async () => {
     if (isLoadingRetweet) return; // Prevent duplicate clicks
     
-    const newRetweetState = !isRetweeted;
-    setIsRetweeted(newRetweetState);
+    setIsRetweeted(!isRetweeted);
     setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
     setIsLoadingRetweet(true);
     
@@ -67,52 +64,26 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
       const response = await fetch('/api/retweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: currentUser, 
-          postId: tweet.tweetId
-        })
+        body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
       });
 
-      if (response.ok) {
-        // Trigger callback untuk refresh feed
-        if (onRetweetSuccess) {
-          onRetweetSuccess();
-        }
-      } else {
-        console.error("Failed to toggle retweet");
-        // Revert state jika error
-        setIsRetweeted(!newRetweetState);
-        setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
-      }
-    } catch (error) {
-      console.error("Retweet error:", error);
-      setIsRetweeted(!newRetweetState);
-      setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
-    } finally {
-      setIsLoadingRetweet(false);
-    }
+      if (response.ok) if (onRetweetSuccess) { onRetweetSuccess() }
+    } finally { setIsLoadingRetweet(false) }
   };
 
   const handleBookmark = async () => {
-    if (!currentUser) return;
+    if (isLoadingBookmark) return; // Prevent duplicate clicks
 
-    const newBookmarkState = !isBookmarked;
-    setIsBookmarked(newBookmarkState);
+    setIsBookmarked(!isBookmarked);
+    setIsLoadingBookmark(true);
 
     try {
-      const response = await fetch('/api/bookmarks', {
+      await fetch('/api/bookmark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle bookmark');
-      }
-    } catch (error) {
-      console.error('Bookmark error:', error);
-      setIsBookmarked(!newBookmarkState); // Revert state on error
-    }
+    } finally { setIsLoadingBookmark(false) }
   };
 
   const formatNumber = (num: number) => {
@@ -136,32 +107,36 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
 
   return (
     <article 
-      className="border-b border-gray-200 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+      className={`border-b border-gray-200 p-4 ${tweet.type === 'Retweet' ? 'pt-1' : ''} hover:bg-gray-50/50 transition-colors cursor-pointer`}
       onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
     >
       {/* Retweet indicator */}
       {tweet.type === 'Retweet' && (
-        <div className="flex items-center mb-2 text-gray-500 text-sm">
-          <Repeat2 className="h-4 w-4 mr-2" />
+        <div className="flex items-center mb-1 text-gray-500 text-sm space-x-3">
+          <div className="flex w-10 mt-0.5 justify-end">
+            <Repeat2 className="h-4 w-4 flex-shrink-0" />
+          </div>
           <span>You retweeted</span>
         </div>
       )}
 
       <div className="flex space-x-3">
         {/* Avatar */}
-        <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="h-fit">
-          <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+        <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
+          <Image src={`/img/${tweet.author.avatar}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
         </Link>
         
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center space-x-1">
-            <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1">
-              <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-                {tweet.author.name}
+            <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1 min-w-0">
+              <h3 className={`font-semibold text-gray-900 hover:underline cursor-pointer ${sidebarMode ? 'truncate' : ''}`}>
+              {tweet.author.name}
               </h3>
-              <span className="text-gray-500">@{tweet.author.username}</span>
+              <span className={`text-gray-500 ${sidebarMode ? 'truncate' : ''}`}>
+                @{tweet.author.username}
+              </span>
             </Link>
             <span className="text-gray-500">·</span>
             <time className="text-gray-500 text-sm">
@@ -182,7 +157,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
           <div className="flex flex-col mt-1 gap-1">
             <p className="text-gray-900 whitespace-pre-wrap">{tweet.content}</p>
             {tweet.media.length > 0 && (
-              <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
+              <div className={`mt-2 ${tweet.media.length > 1 ? `grid grid-cols-2 auto-rows-fr rounded-xl ${sidebarMode ? 'h-40 gap-0.5' : 'h-80 gap-1'}` : 'flex w-full'} overflow-hidden items-center`}>
                 {tweet.media.map((mediaUrl, idx) => (
                   <Link
                     key={idx} onClick={(e) => e.stopPropagation()}
@@ -245,7 +220,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
               {/* Bookmark */}
               <button 
                 onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
-                className={`flex items-center space-x-2 transition-colors group ${
+                className={`flex items-center transition-colors group ${
                   isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
                 }`}
               >
@@ -257,7 +232,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
               {/* Share */}
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group"
+                className="flex items-center text-gray-500 hover:text-pink-500 transition-colors group"
               >
                 <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
                   <Share2 className="h-4 w-4" />
