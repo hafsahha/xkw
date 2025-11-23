@@ -67,15 +67,18 @@ export async function POST(req: NextRequest) {
         const notificationsCollection = database.collection("notifications");
 
         const body = await req.json();
-        const { username, tweetId } = body;
+        const { username, tweetId, postId } = body;
         
-        if (!username || !tweetId) {
+        // Support both tweetId and postId for compatibility
+        const finalTweetId = tweetId || postId;
+        
+        if (!username || !finalTweetId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
         const [user, tweet] = await Promise.all([
             userCollection.findOne({ username }),
-            tweetCollection.findOne({ tweetId })
+            tweetCollection.findOne({ tweetId: finalTweetId })
         ]);
 
         if (!user) {
