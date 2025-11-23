@@ -93,9 +93,26 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    // TODO: API call
+  const handleBookmark = async () => {
+    if (!currentUser) return;
+
+    const newBookmarkState = !isBookmarked;
+    setIsBookmarked(newBookmarkState);
+
+    try {
+      const response = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle bookmark');
+      }
+    } catch (error) {
+      console.error('Bookmark error:', error);
+      setIsBookmarked(!newBookmarkState); // Revert state on error
+    }
   };
 
   const formatNumber = (num: number) => {

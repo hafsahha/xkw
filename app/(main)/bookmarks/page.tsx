@@ -1,83 +1,55 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+// Define the type for a tweet
+interface Tweet {
+  _id: string;
+  author: {
+    name: string;
+    username: string;
+  };
+  createdAt: string;
+  content: string;
+  stats: {
+    replies: number;
+    retweets: number;
+    likes: number;
+  };
+}
+
 export default function BookmarksPage() {
-  // Mock bookmarked tweets data
-  const bookmarkedTweets = [
-    {
-      id: "1",
-      author: {
-        id: "user1",
-        username: "techguru",
-        name: "Tech Guru",
-        avatar: "/placeholder-avatar.png"
-      },
-      content: "10 JavaScript tips that will make you a better developer:\n\n1. Use destructuring for cleaner code\n2. Master async/await\n3. Understand closures\n4. Learn functional programming concepts\n\nThread below 👇",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      stats: {
-        likes: 324,
-        retweets: 89,
-        quotes: 23,
-        replies: 45
-      },
-      type: "Original" as const,
-      bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString()
-    },
-    {
-      id: "2",
-      author: {
-        id: "user2",
-        username: "designpro",
-        name: "Design Pro",
-        avatar: "/placeholder-avatar.png"
-      },
-      content: "The psychology of color in UI design:\n\n🔴 Red: Urgency, action\n🔵 Blue: Trust, calm\n🟢 Green: Success, growth\n🟡 Yellow: Attention, caution\n🟣 Purple: Luxury, creativity\n\nChoose wisely for your next project!",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-      stats: {
-        likes: 567,
-        retweets: 234,
-        quotes: 67,
-        replies: 89
-      },
-      type: "Original" as const,
-      bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString()
-    },
-    {
-      id: "3",
-      author: {
-        id: "user3",
-        username: "webdevtips",
-        name: "WebDev Tips",
-        avatar: "/placeholder-avatar.png"
-      },
-      content: "CSS Grid vs Flexbox - when to use which?\n\n📊 CSS Grid: For 2D layouts (rows AND columns)\n📐 Flexbox: For 1D layouts (either rows OR columns)\n\nGrid for page layout, Flexbox for components. That's the general rule!",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-      stats: {
-        likes: 445,
-        retweets: 178,
-        quotes: 34,
-        replies: 67
-      },
-      type: "Original" as const,
-      bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString()
-    },
-    {
-      id: "4",
-      author: {
-        id: "user4",
-        username: "reactdev",
-        name: "React Developer",
-        avatar: "/placeholder-avatar.png"
-      },
-      content: "React 19 is here! 🎉\n\nKey new features:\n- React Server Components\n- Concurrent features\n- Automatic batching\n- New Suspense improvements\n\nTime to upgrade your projects!",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      stats: {
-        likes: 892,
-        retweets: 456,
-        quotes: 123,
-        replies: 234
-      },
-      type: "Original" as const,
-      bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString()
-    }
-  ];
+  const [bookmarkedTweets, setBookmarkedTweets] = useState<Tweet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch the logged-in user's username from localStorage
+    const storedUser = localStorage.getItem("loggedUser");
+    setCurrentUser(storedUser);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const fetchBookmarks = async () => {
+      try {
+        const response = await fetch(`/api/bookmarks?username=${currentUser}`);
+        if (response.ok) {
+          const data = await response.json();
+          setBookmarkedTweets(data);
+        } else {
+          console.error("Failed to fetch bookmarks");
+        }
+      } catch (error) {
+        console.error("Error fetching bookmarks:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookmarks();
+  }, [currentUser]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -85,7 +57,7 @@ export default function BookmarksPage() {
     const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
-    
+
     if (days > 0) return `${days}d`;
     if (hours > 0) return `${hours}h`;
     const minutes = Math.floor(diff / (1000 * 60));
@@ -98,6 +70,10 @@ export default function BookmarksPage() {
     return num.toString();
   };
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <>
       {/* Header */}
@@ -105,7 +81,7 @@ export default function BookmarksPage() {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold text-black">Bookmarks</h1>
         </div>
-        <p className="text-sm text-gray-500 mt-1">@username</p>
+        <p className="text-sm text-gray-500 mt-1">@{currentUser}</p>
       </div>
 
       {/* Empty State or Bookmarks */}
@@ -125,7 +101,7 @@ export default function BookmarksPage() {
       ) : (
         <div className="divide-y divide-gray-200">
           {bookmarkedTweets.map((tweet) => (
-            <article key={tweet.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+            <article key={tweet._id} className="p-4 hover:bg-gray-50/50 transition-colors">
               <div className="flex space-x-3">
                 {/* Avatar */}
                 <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
