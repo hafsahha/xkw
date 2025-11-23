@@ -6,7 +6,7 @@ import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function TweetCard({ tweet }: { tweet: Post }) {
+export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, onRetweetSuccess?: () => void }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
@@ -14,6 +14,8 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
   const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
   const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted);
   const [isLiked, setIsLiked] = useState(tweet.isLiked);
+  const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
+  const [isLoadingLike, setIsLoadingLike] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -31,22 +33,64 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const handleLike = () => {
+  const handleLike = async () => {
+    if (isLoadingLike) return; // Prevent duplicate clicks
+    
     setIsLiked(!isLiked);
     setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }));
+    setIsLoadingLike(true);
 
-    fetch('/api/like', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
-    });
+    try {
+      await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+      });
+    } catch (error) {
+      console.error("Like error:", error);
+      setIsLiked(!isLiked);
+      setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes + 1 : prev.likes - 1 }));
+    } finally {
+      setIsLoadingLike(false);
+    }
   };
 
-  const handleRetweet = () => {
-    setIsRetweeted(!isRetweeted);
-    setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
+  const handleRetweet = async () => {
+    if (isLoadingRetweet) return; // Prevent duplicate clicks
     
-    // TODO: API call
+    const newRetweetState = !isRetweeted;
+    setIsRetweeted(newRetweetState);
+    setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
+    setIsLoadingRetweet(true);
+    
+    try {
+      const response = await fetch('/api/retweets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username: currentUser, 
+          postId: tweet.tweetId
+        })
+      });
+
+      if (response.ok) {
+        // Trigger callback untuk refresh feed
+        if (onRetweetSuccess) {
+          onRetweetSuccess();
+        }
+      } else {
+        console.error("Failed to toggle retweet");
+        // Revert state jika error
+        setIsRetweeted(!newRetweetState);
+        setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
+      }
+    } catch (error) {
+      console.error("Retweet error:", error);
+      setIsRetweeted(!newRetweetState);
+      setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
+    } finally {
+      setIsLoadingRetweet(false);
+    }
   };
 
   const handleBookmark = () => {
@@ -155,9 +199,10 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
             {/* Retweet */}
             <button 
               onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
+              disabled={isLoadingRetweet}
               className={`flex items-center space-x-2 transition-colors group ${
                 isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-              }`}
+              } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
                 <Repeat2 className="h-4 w-4" />
@@ -168,9 +213,10 @@ export default function TweetCard({ tweet }: { tweet: Post }) {
             {/* Like */}
             <button 
               onClick={(e) => { e.stopPropagation(); handleLike(); }}
+              disabled={isLoadingLike}
               className={`flex items-center space-x-2 transition-colors group ${
                 isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-              }`}
+              } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
                 <Heart className={`h-4 w-4 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />

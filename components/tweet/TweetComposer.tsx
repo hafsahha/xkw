@@ -4,18 +4,47 @@ import { useState } from "react";
 import { User } from "@/lib/types";
 import Image from "next/image";
 
-export default function TweetComposer({ user, loading } : { user?: User, loading?: boolean }) {
+export default function TweetComposer({ user, loading, onTweetPosted }: { user?: User, loading?: boolean, onTweetPosted?: () => void }) {
   const [tweetText, setTweetText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const maxLength = 280;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tweetText.trim()) {
-      // TODO: Implement tweet posting logic
-      console.log("Posting tweet:", tweetText);
-      setTweetText("");
-      setIsExpanded(false);
+    if (!tweetText.trim() || !user) return;
+
+    setIsPosting(true);
+    try {
+      const response = await fetch("/api/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: user.username,
+          content: tweetText,
+          media: [],
+          type: "Original"
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Tweet posted:", data);
+        setTweetText("");
+        setIsExpanded(false);
+        
+        // Callback untuk refresh feed
+        if (onTweetPosted) {
+          onTweetPosted();
+        }
+      } else {
+        alert("Gagal posting tweet");
+      }
+    } catch (error) {
+      console.error("Error posting tweet:", error);
+      alert("Error: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -120,10 +149,10 @@ export default function TweetComposer({ user, loading } : { user?: User, loading
                     {/* Post Button */}
                     <button
                       type="submit"
-                      disabled={!tweetText.trim() || tweetText.length > maxLength}
+                      disabled={!tweetText.trim() || tweetText.length > maxLength || isPosting}
                       className="bg-pink-500 text-white px-4 py-1.5 rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-600 transition-colors"
                     >
-                      Post
+                      {isPosting ? "Posting..." : "Post"}
                     </button>
                   </div>
                 </div>

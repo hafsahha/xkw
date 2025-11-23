@@ -25,14 +25,20 @@ export default function Home() {
     if(loggedUser) fetchUser(loggedUser);
   }, [loggedUser])
 
+  const fetchFeed = async () => {
+    const response = await fetch('/api/post?currentUser=' + loggedUser);
+    const data = await response.json();
+    setTweets(data as Post[]);
+  }
+
   useEffect(() => {
-    async function fetchFeed() {
-      const response = await fetch('/api/post?currentUser=' + loggedUser);
-      const data = await response.json();
-      setTweets(data as Post[]);
-    }
     if (loggedUser) fetchFeed();
   }, [loggedUser])
+
+  const handleTweetPosted = () => {
+    // Refresh feed setelah tweet baru diposting
+    fetchFeed();
+  };
 
   return (
     <>
@@ -63,12 +69,12 @@ export default function Home() {
       </div>
 
       {/* Tweet Composer */}
-      {currentUser ? <TweetComposer user={currentUser} /> : <TweetComposer loading />}
+      {currentUser ? <TweetComposer user={currentUser} onTweetPosted={handleTweetPosted} /> : <TweetComposer loading />}
 
       {/* Tweet Feed */}
       {tweets ? (
         <div className="divide-y divide-gray-200">
-          {tweets!.map((tweet, _) => <TweetCard key={_} tweet={tweet} />)}
+          {tweets!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchFeed} />)}
         </div>
       ) : (
         <div className="divide-y divide-gray-200">
