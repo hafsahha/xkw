@@ -1,16 +1,13 @@
-import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getMongoClient } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 export async function GET(req: NextRequest) {
     try {
-        const database = await db;
-        if (!database) {
-            return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
-        }
-        
-        const followsCollection = database.collection("follows");
-        const usersCollection = database.collection("users");
+        const client = await getMongoClient();
+        const db = client.db("xkw_social");
+        const followsCollection = db.collection("follows");
+        const usersCollection = db.collection("users");
         
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get('userId');
@@ -51,9 +48,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ isFollowing: !!follow, follow });
         }
         
-        // Get all follows
-        const allFollows = await followsCollection.find({}).toArray();
-        return NextResponse.json({ follows: allFollows, count: allFollows.length });
+        return NextResponse.json({ error: "Invalid request parameters" }, { status: 400 });
         
     } catch (error) {
         return NextResponse.json({ error: "Error fetching follows", details: error }, { status: 500 });
@@ -62,29 +57,29 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const database = await db;
-        if (!database) {
-            return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
-        }
-        
-        const followsCollection = database.collection("follows");
-        const usersCollection = database.collection("users");
-        const notificationsCollection = database.collection("notifications");
+        const client = await getMongoClient();
+        const db = client.db("xkw_social");
+        const followsCollection = db.collection("follows");
+        const usersCollection = db.collection("users");
+        const notificationsCollection = db.collection("notifications");
 
         const body = await req.json();
-        const { followerUsername, followingUsername } = body;
+        const { followerId, followingId } = body;
         
-        if (!followerUsername || !followingUsername) {
+        if (!followerId || !followingId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        if (followerUsername === followingUsername) {
+        if (followerId === followingId) {
             return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
         }
 
+        const followerObjectId = new ObjectId(followerId);
+        const followingObjectId = new ObjectId(followingId);
+
         const [follower, following] = await Promise.all([
-            usersCollection.findOne({ username: followerUsername }),
-            usersCollection.findOne({ username: followingUsername })
+            usersCollection.findOne({ _id: followerObjectId }),
+            usersCollection.findOne({ _id: followingObjectId })
         ]);
 
         if (!follower || !following) {
@@ -92,91 +87,6 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if already following
-        const existingFollow = await followsCollection.findOne({ 
-            followerId: follower._id, 
-            followingId: following._id 
-        });
-        
-        if (existingFollow) {
-            // Unfollow
-            await followsCollection.deleteOne({ _id: existingFollow._id });
-            
-            // Update follower/following counts
-            await Promise.all([
-                usersCollection.updateOne({ _id: follower._id }, { $inc: { "stats.following": -1 } }),
-                usersCollection.updateOne({ _id: following._id }, { $inc: { "stats.followers": -1 } })
-            ]);
-            
-            return NextResponse.json({ 
-                message: "Unfollowed successfully", 
-                isFollowing: false 
-            }, { status: 200 });
-        } else {
-            // Follow
-            const newFollow = {
-                followerId: follower._id,
-                followingId: following._id,
-                createdAt: new Date()
-            };
-            
-            await followsCollection.insertOne(newFollow);
-            
-            // Update follower/following counts
-            await Promise.all([
-                usersCollection.updateOne({ _id: follower._id }, { $inc: { "stats.following": 1 } }),
-                usersCollection.updateOne({ _id: following._id }, { $inc: { "stats.followers": 1 } })
-            ]);
-            
-            // Create notification
-            await notificationsCollection.insertOne({
-                receiverId: following._id,
-                actor: {
-                    userId: follower._id,
-                    username: follower.username,
-                    name: follower.name,
-                    avatar: follower.media?.profileImage || "/placeholder-avatar.png"
-                },
-                type: "follow",
-                isRead: false,
-                createdAt: new Date()
-            });
-            
-            return NextResponse.json({ 
-                message: "Followed successfully", 
-                isFollowing: true 
-            }, { status: 201 });
-        }
-        
-    } catch (error) {
-        return NextResponse.json({ error: "Error processing follow", details: error }, { status: 500 });
-    }
-}
-        
-        const body = await req.json();
-        const { followerId, followingId } = body;
-        
-        if (!followerId || !followingId) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-        }
-        
-        if (followerId === followingId) {
-            return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
-        }
-        
-        const followerObjectId = new ObjectId(followerId);
-        const followingObjectId = new ObjectId(followingId);
-        
-        // Check if users exist
-        const [follower, following] = await Promise.all([
-            usersCollection.findOne({ _id: followerObjectId }),
-            usersCollection.findOne({ _id: followingObjectId })
-        ]);
-        
-        if (!follower || !following) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
-        }
-        
-        // Check if follow relationship already exists
         const existingFollow = await followsCollection.findOne({ 
             followerId: followerObjectId, 
             followingId: followingObjectId 
@@ -186,13 +96,16 @@ export async function POST(req: NextRequest) {
             // Unfollow
             await followsCollection.deleteOne({ _id: existingFollow._id });
             
-            // Update user stats
+            // Update follower/following counts
             await Promise.all([
                 usersCollection.updateOne({ _id: followerObjectId }, { $inc: { "stats.following": -1 } }),
                 usersCollection.updateOne({ _id: followingObjectId }, { $inc: { "stats.followers": -1 } })
             ]);
             
-            return NextResponse.json({ message: "Unfollowed successfully", isFollowing: false }, { status: 200 });
+            return NextResponse.json({ 
+                message: "Unfollowed successfully", 
+                isFollowing: false 
+            }, { status: 200 });
         } else {
             // Follow
             const newFollow = {
@@ -203,14 +116,14 @@ export async function POST(req: NextRequest) {
             
             const result = await followsCollection.insertOne(newFollow);
             
-            // Update user stats
+            // Update follower/following counts
             await Promise.all([
                 usersCollection.updateOne({ _id: followerObjectId }, { $inc: { "stats.following": 1 } }),
                 usersCollection.updateOne({ _id: followingObjectId }, { $inc: { "stats.followers": 1 } })
             ]);
             
             // Create notification
-            const notification = {
+            await notificationsCollection.insertOne({
                 receiverId: followingObjectId,
                 actor: {
                     userId: follower._id,
@@ -222,18 +135,16 @@ export async function POST(req: NextRequest) {
                 tweetId: null,
                 isRead: false,
                 createdAt: new Date()
-            };
-            
-            await notificationsCollection.insertOne(notification);
+            });
             
             return NextResponse.json({ 
                 message: "Followed successfully", 
-                isFollowing: true, 
-                followId: result.insertedId 
+                isFollowing: true,
+                followId: result.insertedId
             }, { status: 201 });
         }
         
     } catch (error) {
-        return NextResponse.json({ error: "Error processing follow request", details: error }, { status: 500 });
+        return NextResponse.json({ error: "Error processing follow", details: error }, { status: 500 });
     }
 }

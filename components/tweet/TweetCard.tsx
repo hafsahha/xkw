@@ -18,6 +18,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   }
 
   const optionsRef = useRef<HTMLDivElement | null>(null);
+  const retweetDropdownRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [localStats, setLocalStats] = useState(tweet.stats);
@@ -39,9 +40,14 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
-      if (!optionsRef.current) return;
-      if (target && !optionsRef.current.contains(target)) {
+      
+      // Close options dropdown if clicked outside
+      if (optionsRef.current && target && !optionsRef.current.contains(target)) {
         setIsOptionOpen(false);
+      }
+      
+      // Close retweet dropdown if clicked outside  
+      if (retweetDropdownRef.current && target && !retweetDropdownRef.current.contains(target)) {
         setIsRetweetDropdownOpen(false);
       }
     };
