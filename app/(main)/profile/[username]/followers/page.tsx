@@ -76,19 +76,27 @@ export default function FollowersFollowingPage() {
               <p className="text-sm text-gray-500">@{username}</p>
             </div>
           </div>
-          <div className="flex space-x-4 mt-4">
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="sticky top-15 md:top-0 z-10 bg-white/50 backdrop-blur border-b border-gray-200">
+          <div className="flex">
             <button
               onClick={() => setActiveTab("followers")}
-              className={`px-4 py-2 rounded-full ${
-                activeTab === "followers" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+              className={`flex-1 py-4 px-1 text-center font-semibold transition-colors ${
+                activeTab === "followers"
+                  ? "text-pink-600 border-b-2 border-pink-600"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Followers
             </button>
             <button
               onClick={() => setActiveTab("following")}
-              className={`px-4 py-2 rounded-full ${
-                activeTab === "following" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+              className={`flex-1 py-4 px-1 text-center font-semibold transition-colors ${
+                activeTab === "following"
+                  ? "text-pink-600 border-b-2 border-pink-600"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Following
