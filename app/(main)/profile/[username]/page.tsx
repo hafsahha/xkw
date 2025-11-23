@@ -71,28 +71,17 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }
 
     try {
-      const response = await fetch("/api/user", {
+      await fetch("/api/user", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           follower: currentUser,
           followee: userData?.username,
         }),
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        setIsFollowing((prev) => !prev);
-        alert(result.message);
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to update follow status");
-      }
+      setIsFollowing((prev) => !prev);
     } catch (error) {
-      console.error("Error toggling follow status:", error);
-      alert("An error occurred. Please try again.");
+      alert(`Failed to update follow status: ${error}`);
     }
   };
 
