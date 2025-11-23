@@ -47,6 +47,29 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     }
   }, [tweet.stats, tweet.isBookmarked, tweet.isRetweeted, tweet.isLiked]);
 
+  // Check interaction statuses when user or tweet changes
+  useEffect(() => {
+    async function checkInteractionStatus() {
+      if (!currentUser || !tweet?.tweetId) return;
+      
+      try {
+        // Re-fetch tweet with current user context to get updated interaction states
+        const response = await fetch(`/api/post?id=${tweet.tweetId}&currentUser=${currentUser}`);
+        if (response.ok) {
+          const updatedTweet = await response.json();
+          setIsLiked(updatedTweet.isLiked || false);
+          setIsRetweeted(updatedTweet.isRetweeted || false);
+          setIsBookmarked(updatedTweet.isBookmarked || false);
+          setLocalStats(updatedTweet.stats || tweet.stats);
+        }
+      } catch (error) {
+        console.error("Error checking interaction status:", error);
+      }
+    }
+    
+    checkInteractionStatus();
+  }, [currentUser, tweet?.tweetId]);
+
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;

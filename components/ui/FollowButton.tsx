@@ -21,6 +21,34 @@ export default function FollowButton({
     setIsFollowing(initialIsFollowing);
   }, [initialIsFollowing]);
 
+  // Check follow status when component mounts or user changes
+  useEffect(() => {
+    async function checkFollowStatus() {
+      if (!currentUser || currentUser === targetUsername) return;
+      
+      try {
+        // Get current user ID and target user ID
+        const [currentUserRes, targetUserRes] = await Promise.all([
+          fetch(`/api/user?username=${currentUser}`),
+          fetch(`/api/user?username=${targetUsername}`)
+        ]);
+        
+        const currentUserData = await currentUserRes.json();
+        const targetUserData = await targetUserRes.json();
+        
+        if (currentUserData._id && targetUserData._id) {
+          const followCheckRes = await fetch(`/api/follows?followerId=${currentUserData._id}&followingId=${targetUserData._id}`);
+          const followData = await followCheckRes.json();
+          setIsFollowing(followData.isFollowing || false);
+        }
+      } catch (error) {
+        console.error("Error checking follow status:", error);
+      }
+    }
+    
+    checkFollowStatus();
+  }, [currentUser, targetUsername]);
+
   const handleFollow = async () => {
     if (!currentUser || isLoading) return;
     
