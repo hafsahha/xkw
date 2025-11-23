@@ -97,7 +97,7 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
           {user ? (
             <div className="p-3 md:p-2 lg:p-3 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors">
               <div className="flex items-center md:justify-center lg:justify-start space-x-3 md:space-x-0 lg:space-x-3">
-                <Image className="size-10 flex-shrink-0 rounded-full" src={`/img/${user.media.profileImage}`} alt="User Profile" width={40} height={40} />
+                <Image className="size-10 flex-shrink-0 rounded-full" src={`/img/${user.media.avatar ?? "default_avatar.png"}`} alt={user.name} width={40} height={40} />
                 <div className="flex-1 min-w-0 md:hidden lg:block">
                   <p className="font-semibold text-sm truncate text-black">{user.name}</p>
                   <p className="text-gray-500 text-sm truncate">@{user.username}</p>

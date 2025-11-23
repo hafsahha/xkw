@@ -42,7 +42,7 @@ export default function Layout({ children }: { children: Readonly<React.ReactNod
             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           >
             {currentUser ?
-              <Image src={'/img/' + currentUser.media.profileImage} className="size-7 bg-gray-300 rounded-full" width={28} height={28} alt="User avatar" />
+              <Image src={`/img/${currentUser.media.avatar ?? "default_avatar.png"}`} className="size-7 bg-gray-300 rounded-full" width={28} height={28} alt="User avatar" />
             :
               <div className="size-7 bg-gray-300 rounded-full animate-pulse"></div>
             }

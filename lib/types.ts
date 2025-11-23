@@ -5,18 +5,19 @@ export interface UserStats {
 }
 
 export interface User {
-    userId: string;
     username: string;
     email: string;
     password: string;
     name: string;
-    bio: string;
+    bio?: string;
     media: {
-        profileImage: string;
-        bannerImage: string;
+        avatar?: string;
+        banner?: string;
     };
     stats: UserStats;
     createdAt: string;
+    followers: string[];
+    following: string[];
 }
 
 export interface PostStats {
@@ -27,21 +28,19 @@ export interface PostStats {
 }
 
 export interface Post {
-    tweetId: string;
     author: {
-        userId: string;
         name: string;
         username: string;
         avatar: string;
     };
     content: string;
     media: string[];
-    parentTweetId: Post | null;
     type: "Reply" | "Retweet" | "Quote" | "Original";
     stats: PostStats;
+    createdAt: string;
+    tweetId: string;
     isLiked: boolean;
     isRetweeted: boolean;
     isBookmarked: boolean;
     replies?: Post[];
-    createdAt: string;
 }

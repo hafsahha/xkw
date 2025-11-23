@@ -81,9 +81,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       {/* Profile Header */}
       <div className="relative">
         {/* Cover Photo */}
-        {userData.media.bannerImage ?
+        {userData.media.banner ?
           <Image
-            src={`/img/${userData.media.bannerImage}`} alt="Cover Photo"
+            src={`/img/${userData.media.banner}`} alt="Banner image"
             width={1000} height={300}
             className="h-56 w-full object-cover"
           />
@@ -95,7 +95,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         <div className="px-4 pb-4">
           {/* Avatar */}
           <Image
-            src={`/img/${userData.media.profileImage}`} alt="Profile Avatar"
+            src={`/img/${userData.media.avatar ?? "default_avatar.png"}`} alt={userData.name}
             className="relative -mt-20 mb-4 w-40 h-40 bg-gray-300 rounded-full border-4 border-white"
             width={160} height={160}
           />
@@ -126,7 +126,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               <p className="text-gray-500 text-black">@{userData.username}</p>
             </div>
 
-            <p className="text-gray-900 text-sm sm:text-base">{userData.bio}</p>
+            {userData.bio && <p className="text-gray-900 text-sm sm:text-base">{userData.bio}</p> }
             <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm">
               <div className="flex items-center space-x-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,82 +177,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
       ) : (
         <div className="min-h-screen divide-y divide-gray-200">
-          {userPosts!.map((tweet) => <TweetCard key={tweet.tweetId} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
+          {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
         </div>
       )}
     </div>
   );
 }
-
-{/* {activeTab === "Media" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 p-4">
-            {getActiveTabData().map((media) => (
-              <div key={media.id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : activeTab === "Replies" ? (
-          getActiveTabData().map((reply) => (
-            <div key={reply.id} className="p-4 hover:bg-gray-50/50 transition-colors"> */}
-              {/* Parent Tweet */}
-              {/* {reply.parentTweet && (
-                <div className="mb-3">
-                  <div className="flex space-x-3">
-                    <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-1">
-                        <h3 className="font-semibold text-gray-900">{reply.parentTweet.author}</h3>
-                        <span className="text-gray-500">@{reply.parentTweet.username}</span>
-                      </div>
-                      <p className="mt-1 text-gray-900">{reply.parentTweet.content}</p>
-                    </div>
-                  </div> */}
-                  {/* Connection Line */}
-                  {/* <div className="ml-5 w-0.5 h-4 bg-gray-300"></div>
-                </div>
-              )} */}
-              
-              {/* Reply Tweet */}
-              {/* <div className="flex space-x-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-1">
-                    <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                    <span className="text-gray-500">@{user.username}</span>
-                    <span className="text-gray-500">·</span>
-                    <span className="text-gray-500 text-sm">
-                      {Math.floor((Date.now() - new Date(reply.createdAt).getTime()) / (1000 * 60 * 60))}h
-                    </span>
-                  </div>
-                  <p className="mt-1 text-gray-900">{reply.content}</p>
-                  <TweetActions stats={reply.stats} />
-                </div>
-              </div>
-            </div>
-          ))
-        ) : activeTab === "Likes" ? (
-          getActiveTabData().map((likedPost) => (
-            <div key={likedPost.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-              <div className="flex space-x-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-1">
-                    <h3 className="font-semibold text-gray-900">Original Author</h3>
-                    <span className="text-gray-500">@originalauthor</span>
-                    <span className="text-gray-500">·</span>
-                    <span className="text-gray-500 text-sm">
-                      {Math.floor((Date.now() - new Date(likedPost.createdAt).getTime()) / (1000 * 60 * 60))}h
-                    </span>
-                  </div>
-                  <p className="mt-1 text-gray-900">{likedPost.content}</p>
-                  <TweetActions stats={likedPost.stats} isLiked={true} />
-                </div>
-              </div>
-            </div>
-          ))
-        ) : null } */}
