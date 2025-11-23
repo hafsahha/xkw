@@ -1,5 +1,5 @@
 "use client";
-import { Bookmark, Ellipsis, Heart, MessageCircleMore, Quote, Repeat2, Share2 } from "lucide-react";
+import { Bookmark, Ellipsis, Heart, MessageCircleMore, Quote, Repeat2, Share2, BarChart2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Post } from "@/lib/types";
 import FloatingModal from "../ui/FloatingModal";
@@ -49,9 +49,9 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
+  // --- Handlers (Like, Retweet, Bookmark) ---
   const handleLike = async () => {
     if (isLoadingLike || !currentUser) return;
-    
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }));
@@ -63,17 +63,8 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log(result.message);
-      } else {
-        console.error("Failed to toggle like");
-        setIsLiked(!newLikedState);
-        setLocalStats(prev => ({ ...prev, likes: newLikedState ? prev.likes - 1 : prev.likes + 1 }));
-      }
+      if (!response.ok) throw new Error("Failed");
     } catch (error) {
-      console.error("Like error:", error);
       setIsLiked(!newLikedState);
       setLocalStats(prev => ({ ...prev, likes: newLikedState ? prev.likes - 1 : prev.likes + 1 }));
     } finally {
@@ -83,7 +74,6 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
 
   const handleRetweet = async () => {
     if (isLoadingRetweet || !currentUser) return;
-    
     const newRetweetState = !isRetweeted;
     setIsRetweeted(newRetweetState);
     setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
@@ -93,25 +83,14 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
       const response = await fetch('/api/retweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: currentUser, 
-          postId: tweet.tweetId
-        })
+        body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
       });
-
       if (response.ok) {
-        const result = await response.json();
-        console.log(result.message);
-        if (onRetweetSuccess) {
-          onRetweetSuccess();
-        }
+        if (onRetweetSuccess) onRetweetSuccess();
       } else {
-        console.error("Failed to toggle retweet");
-        setIsRetweeted(!newRetweetState);
-        setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
+        throw new Error("Failed");
       }
     } catch (error) {
-      console.error("Retweet error:", error);
       setIsRetweeted(!newRetweetState);
       setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
     } finally {
@@ -121,7 +100,6 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
 
   const handleBookmark = async () => {
     if (isLoadingBookmark || !currentUser) return;
-    
     const newBookmarkState = !isBookmarked;
     setIsBookmarked(newBookmarkState);
     setIsLoadingBookmark(true);
@@ -130,21 +108,10 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
       const response = await fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: currentUser, 
-          postId: tweet.tweetId
-        })
+        body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log(result.message);
-      } else {
-        console.error("Failed to toggle bookmark");
-        setIsBookmarked(!newBookmarkState);
-      }
+      if (!response.ok) throw new Error("Failed");
     } catch (error) {
-      console.error("Bookmark error:", error);
       setIsBookmarked(!newBookmarkState);
     } finally {
       setIsLoadingBookmark(false);
@@ -173,45 +140,53 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   return (
     <>
       <article 
-        className="border-b border-gray-200 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+        className="border-b border-gray-200 hover:bg-gray-50/50 transition-colors cursor-pointer px-4 pt-3 pb-2"
         onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
       >
         {/* Retweet indicator */}
         {tweet.type === 'Retweet' && (
-          <div className="flex items-center mb-2 text-gray-500 text-sm">
+          <div className="flex items-center mb-1 ml-8 text-gray-500 text-[13px] font-bold">
             <Repeat2 className="h-4 w-4 mr-2" />
             <span>You retweeted</span>
           </div>
         )}
 
-        <div className="flex space-x-3">
-          {/* Avatar */}
-          <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="h-fit">
-            <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+        <div className="flex gap-3">
+          {/* Left Column: Avatar */}
+          <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex-shrink-0 pt-1">
+            <Image 
+                src={'/img/' + tweet.author.avatar} 
+                alt={tweet.author.name} 
+                className="size-10 rounded-full object-cover hover:brightness-90 transition-all" 
+                width={40} 
+                height={40} 
+            />
           </Link>
           
-          {/* Content */}
+          {/* Right Column: Content */}
           <div className="flex-1 min-w-0">
-            {/* Header */}
-            <div className="flex items-center space-x-1">
-              <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1">
-                <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-                  {tweet.author.name}
-                </h3>
-                <span className="text-gray-500">@{tweet.author.username}</span>
-              </Link>
-              <span className="text-gray-500">·</span>
-              <time className="text-gray-500 text-sm">
-                {formatTime(tweet.createdAt)}
-              </time>
+            {/* Header: Name, Handle, Time, Menu */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center flex-wrap text-[15px] leading-5 truncate">
+                <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 min-w-0 truncate">
+                  <span className="font-bold text-[#0f1419] hover:underline truncate">
+                    {tweet.author.name}
+                  </span>
+                  <span className="text-gray-500 truncate">@{tweet.author.username}</span>
+                </Link>
+                <span className="text-gray-500 mx-1">·</span>
+                <time className="text-gray-500 hover:underline text-[15px]">
+                  {formatTime(tweet.createdAt)}
+                </time>
+              </div>
               
-              {/* Options */}
-              <div className="ml-auto relative" ref={optionsRef}>
+              {/* Options Dots */}
+              <div className="relative -mt-1 -mr-2" ref={optionsRef}>
                 <button 
                   onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-2 text-gray-500 hover:bg-sky-50 hover:text-sky-500 rounded-full transition-colors"
                 >
-                  <Ellipsis className="h-4 w-4 text-gray-500" />
+                  <Ellipsis className="h-[18px] w-[18px]" />
                 </button>
                 
                 <FloatingModal 
@@ -219,160 +194,170 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
                   onClose={() => setIsOptionOpen(false)}
                   tweet={tweet}
                 >
-                  <div className="py-1">
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
-                      Delete
+                  <div className="py-1 shadow-box font-medium">
+                    <button className="w-full text-left px-4 py-3 hover:bg-gray-100 text-[#f4212e] flex items-center gap-2">
+                       Delete
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                      Edit
+                    <button className="w-full text-left px-4 py-3 hover:bg-gray-100 text-[#0f1419] flex items-center gap-2">
+                       Edit
                     </button>
                   </div>
                 </FloatingModal>
               </div>
             </div>
 
-            {/* Content Text */}
-            <p className="text-gray-900 mt-1 whitespace-pre-wrap">
+            {/* Content Text - The Fix for "Meleber" */}
+            <div className="text-[#0f1419] text-[15px] leading-normal whitespace-pre-wrap break-words mt-0.5">
               {tweet.content}
-            </p>
+            </div>
 
-            {/* Media */}
+            {/* Media Grid */}
             {tweet.media && tweet.media.length > 0 && (
-              <div className={`mt-3 ${tweet.media.length > 1 ? 'grid gap-2' : ''} ${
+              <div className={`mt-3 ${tweet.media.length > 1 ? 'grid gap-0.5' : ''} ${
                 tweet.media.length === 2 ? 'grid-cols-2' :
                 tweet.media.length === 3 ? 'grid-cols-2 grid-rows-2' :
                 tweet.media.length === 4 ? 'grid-cols-2 grid-rows-2' : ''
-              } max-h-96 rounded-xl overflow-hidden`}>
+              } rounded-2xl overflow-hidden border border-gray-200`}>
                 {tweet.media.map((mediaUrl, idx) => (
                   <Link
                     key={idx}
                     onClick={(e) => e.stopPropagation()}
                     href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
-                    className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                    className={`relative ${tweet.media.length > 1 ? 'h-full w-full aspect-square' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
                   >
                     <Image
                       src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
-                      className={`${tweet.media.length > 1 ? 'h-full w-full' : 'max-h-100 max-w-full w-auto h-auto rounded-xl'} object-cover`}
+                      className={`${tweet.media.length > 1 ? 'h-full w-full' : 'w-full h-auto'} object-cover`}
                       width={1000} height={1000}
                     />
                   </Link>
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Actions */}
-          <div className="flex w-full items-center justify-between mt-3">
-            {/* Reply */}
-            <button 
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group"
-            >
-              <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                <MessageCircleMore className="h-4 w-4" />
-              </div>
-              <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
-            </button>
-
-            {/* Retweet with dropdown */}
-            <div className="relative">
+            {/* Actions Bar */}
+            <div className="flex w-full items-center justify-between mt-1 max-w-[425px]">
+              {/* Reply */}
               <button 
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setIsRetweetDropdownOpen(!isRetweetDropdownOpen);
-                }}
-                disabled={isLoadingRetweet}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                  <Repeat2 className="h-4 w-4" />
-                </div>
-                <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
-              </button>
-              
-              {/* Dropdown Menu */}
-              {isRetweetDropdownOpen && (
-                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsRetweetDropdownOpen(false);
-                      handleRetweet();
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Repeat2 className="h-4 w-4" />
-                    <span>{isRetweeted ? 'Undo retweet' : 'Retweet'}</span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsRetweetDropdownOpen(false);
-                      setIsQuoteModalOpen(true);
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Quote className="h-4 w-4" />
-                    <span>Quote Tweet</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Like */}
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleLike(); }}
-              disabled={isLoadingLike}
-              className={`flex items-center space-x-2 transition-colors group ${
-                isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-              } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
-                <Heart className={`h-4 w-4 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-              </div>
-              <span className="text-sm">{localStats.likes > 0 ? formatNumber(localStats.likes) : ' '}</span>
-            </button>
-
-            <div className="flex items-center space-x-2">
-              {/* Bookmark */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
-                disabled={isLoadingBookmark}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
-                } ${isLoadingBookmark ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                  <Bookmark className={`h-4 w-4 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
-                </div>
-              </button>
-
-              {/* Share */}
-              <button
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group"
+                className="group flex items-center space-x-1 -ml-2"
+              >
+                <div className="p-2 rounded-full group-hover:bg-sky-50 transition-colors">
+                  <MessageCircleMore className="h-[18px] w-[18px] text-gray-500 group-hover:text-sky-500" />
+                </div>
+                <span className="text-[13px] text-gray-500 group-hover:text-sky-500">
+                    {localStats.replies > 0 ? formatNumber(localStats.replies) : ''}
+                </span>
+              </button>
+
+              {/* Retweet */}
+              <div className="relative">
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setIsRetweetDropdownOpen(!isRetweetDropdownOpen);
+                  }}
+                  disabled={isLoadingRetweet}
+                  className="group flex items-center space-x-1"
+                >
+                  <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                    <Repeat2 className={`h-[18px] w-[18px] ${isRetweeted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'}`} />
+                  </div>
+                  <span className={`text-[13px] ${isRetweeted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'}`}>
+                     {localStats.retweets > 0 ? formatNumber(localStats.retweets) : ''}
+                  </span>
+                </button>
+                
+                {isRetweetDropdownOpen && (
+                  <div className="absolute top-0 right-0 mt-8 bg-white border border-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.1)] py-2 z-20 w-40 font-bold text-[15px]">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsRetweetDropdownOpen(false);
+                        handleRetweet();
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 text-[#0f1419]"
+                    >
+                      <Repeat2 className="h-[18px] w-[18px]" />
+                      <span>{isRetweeted ? 'Undo repost' : 'Repost'}</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsRetweetDropdownOpen(false);
+                        setIsQuoteModalOpen(true);
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 text-[#0f1419]"
+                    >
+                      <Quote className="h-[18px] w-[18px]" />
+                      <span>Quote</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Like */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                disabled={isLoadingLike}
+                className="group flex items-center space-x-1"
               >
                 <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                  <Share2 className="h-4 w-4" />
+                  <Heart className={`h-[18px] w-[18px] ${isLiked ? 'text-[#f91880] fill-[#f91880]' : 'text-gray-500 group-hover:text-[#f91880]'}`} />
                 </div>
+                <span className={`text-[13px] ${isLiked ? 'text-[#f91880]' : 'text-gray-500 group-hover:text-[#f91880]'}`}>
+                   {localStats.likes > 0 ? formatNumber(localStats.likes) : ''}
+                </span>
               </button>
+
+              {/* Views / Stats (Optional, matching visual balance) */}
+              <button 
+                 onClick={(e) => e.stopPropagation()}
+                 className="group flex items-center space-x-1"
+              >
+                  <div className="p-2 rounded-full group-hover:bg-sky-50 transition-colors">
+                    <BarChart2 className="h-[18px] w-[18px] text-gray-500 group-hover:text-sky-500" />
+                  </div>
+                   <span className="text-[13px] text-gray-500 group-hover:text-sky-500">
+                    {/* Random view count or from props */}
+                    {formatNumber(tweet.stats.views || 0)} 
+                   </span>
+              </button>
+
+              {/* Share & Bookmark Group */}
+              <div className="flex items-center">
+                 <button 
+                  onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+                  disabled={isLoadingBookmark}
+                  className="group flex items-center"
+                >
+                  <div className="p-2 rounded-full group-hover:bg-sky-50 transition-colors">
+                    <Bookmark className={`h-[18px] w-[18px] ${isBookmarked ? 'text-sky-500 fill-sky-500' : 'text-gray-500 group-hover:text-sky-500'}`} />
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="group flex items-center"
+                >
+                  <div className="p-2 rounded-full group-hover:bg-sky-50 transition-colors">
+                    <Share2 className="h-[18px] w-[18px] text-gray-500 group-hover:text-sky-500" />
+                  </div>
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
       </article>
 
       {/* Quote Tweet Modal */}
-      {currentUser && (
-        <QuoteTweetModal
-          isOpen={isQuoteModalOpen}
-          onClose={() => setIsQuoteModalOpen(false)}
-          originalTweet={tweet}
-          currentUser={currentUser}
-          onQuoteSuccess={onRetweetSuccess}
-        />
-      )}
+      <QuoteTweetModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        originalTweet={tweet}
+        currentUser={currentUser || "Guest"} // Provide a fallback for currentUser
+        onQuoteSuccess={onRetweetSuccess}
+      />
     </>
   );
 }
