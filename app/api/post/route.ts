@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import db from "@/lib/db";
 
-// Fetch tweets (single or all)
+// Fetch tweets (by ID, by username, or all)
 export async function GET(req: NextRequest) {
     const database = await db;
     const tweetCollection = database?.collection("tweets");
@@ -16,120 +16,120 @@ export async function GET(req: NextRequest) {
         const currentUser = searchParams.get("currentUser");
         const username = searchParams.get("username");
         const id = searchParams.get("id");
+
+        if (!currentUser) return NextResponse.json({ message: "Current user is required" }, { status: 400 });
+        const userObject = await userCollection.findOne({ username: currentUser });
+        if (!userObject) return NextResponse.json({ message: "Current user not found" }, { status: 404 });
         
-        // Fetch single tweet by ID
+        // Get a single tweet data by tweet ID
         if (id) {
             const tweet = await tweetCollection.findOne({ tweetId: id });
             if (tweet) {
-                // Fetch replies
+                const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null;
+                const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;
+                const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweet._id }) !== null;
+                
+                // Get replies
                 const replies = await tweetCollection.find({ parentTweetId: tweet._id }).toArray();
-
-                const isLiked = await likeCollection.findOne({ likedBy: currentUser, tweetId: tweet._id }) !== null;
-                const isRetweeted = await retweetCollection.findOne({ RetweetedBy: currentUser, tweetId: tweet._id }) !== null;
-                const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: currentUser, tweetId: tweet._id }) !== null;
-                return NextResponse.json({ ...tweet, isLiked, isRetweeted, isBookmarked, replies });
+                const detailedReplies = await Promise.all(replies.map(async (reply) => {
+                    const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: reply._id }) !== null;
+                    const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: reply._id }) !== null;
+                    const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: reply._id }) !== null;
+                    return { ...reply, isLiked, isRetweeted, isBookmarked };
+                }));
+                return NextResponse.json({ ...tweet, isLiked, isRetweeted, isBookmarked, replies: detailedReplies });
             }
             return NextResponse.json({ message: "Tweet not found" }, { status: 404 });
         }
 
-        // Fetch tweets by username
+        // Get all tweets by username
         if (username) {
+            // Filter liked tweets only
             if (searchParams.get("likedOnly") === "true") {
                 const likedTweets = await likeCollection.find({ likedBy: username }).sort({ createdAt: -1 }).toArray();
                 const detailedLikedTweets = await Promise.all(likedTweets.map(async (like) => {
                     const tweetObject = await tweetCollection.findOne({ _id: like.tweetId });
-                    const isRetweeted = await retweetCollection.findOne({ retweetedBy: currentUser, tweetId: tweetObject?._id }) !== null;
-                    const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: currentUser, tweetId: tweetObject?._id }) !== null;
+                    const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
+                    const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
                     return { ...tweetObject, isLiked: true, isRetweeted, isBookmarked };
                 }));
                 return NextResponse.json(detailedLikedTweets);
             }
 
-            const includeReplies = searchParams.get("includeReplies") === "true";
-            const mediaOnly = searchParams.get("mediaOnly") === "true";
+            const includeReplies = searchParams.get("includeReplies") === "true"; // Include reply tweets
+            const mediaOnly = searchParams.get("mediaOnly") === "true"; // Filter media only tweets
+            
+            // Fetch user tweets based on filters
             const query =
                 includeReplies ? { "author.username": username } :
                 mediaOnly ? { "author.username": username, media: { $exists: true, $ne: [] } } :
                 { "author.username": username, type: "Original" };
                 
             const userTweets = await tweetCollection.find(query).sort({ createdAt: -1 }).toArray();
+            let detailedUserTweets = await Promise.all(userTweets.map(async (tweet) => {
+                if (!tweet) return null;
+                const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null
+                const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;
+                const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweet._id }) !== null
+                return { ...tweet, isLiked, isRetweeted, isBookmarked };
+            })).then(results => results.filter(Boolean));
             
-            // Get retweets dari user ini
-            const userRetweets = await retweetCollection.find({ retweetedBy: username }).toArray();
-            const retweetedPosts = await Promise.all(
-                userRetweets.map(async (retweet) => {
+            // Get user retweets
+            if (!mediaOnly) {
+                const userRetweets = await retweetCollection.find({ retweetedBy: username }).toArray();
+                const retweetedPosts = await Promise.all(userRetweets.map(async (retweet) => {
                     const originalPost = await tweetCollection.findOne({ _id: retweet.tweetId });
                     if (!originalPost) return null;
                     
-                    const isLiked = await likeCollection.findOne({ likedBy: currentUser, tweetId: originalPost._id }) !== null;
-                    const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: currentUser, tweetId: originalPost._id }) !== null;
-                    
-                    return {
-                        ...originalPost,
-                        type: "Retweet",
-                        isLiked,
-                        isRetweeted: true,
-                        isBookmarked
+                    const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: originalPost._id }) !== null;
+                    const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: originalPost._id }) !== null;
+                    return { ...originalPost, type: "Retweet", isLiked, isRetweeted: true, isBookmarked, retweetedAt: retweet.createdAt };
+                })).then(results => results.filter(Boolean)); // Filter null values
+                
+                // Combine & sort all posts, using retweetedAt for retweets when available
+                detailedUserTweets = [...detailedUserTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
+                    const timeOf = (t) => {
+                        if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
+                        else return new Date(t.createdAt).getTime();
                     };
+                    return timeOf(tweetB) - timeOf(tweetA);
                 })
-            ).then(results => results.filter(Boolean)); // Filter null values
-            
-            // Gabung & sort
-            const allUserPosts = [...userTweets, ...retweetedPosts].sort((a, b) => {
-                const dateA = (a as any)?.createdAt ? new Date((a as any).createdAt).getTime() : 0;
-                const dateB = (b as any)?.createdAt ? new Date((b as any).createdAt).getTime() : 0;
-                return dateB - dateA;
-            });
-            
-            const detailedUserTweets = await Promise.all(allUserPosts.map(async (tweet) => {
-                if (!tweet) return null;
-                const isLiked = await likeCollection.findOne({ likedBy: currentUser, tweetId: (tweet as any)._id }) !== null
-                const isRetweeted = await retweetCollection.findOne({ retweetedBy: currentUser, tweetId: (tweet as any)._id }) !== null;
-                const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: currentUser, tweetId: (tweet as any)._id }) !== null
-                return { ...tweet, isLiked, isRetweeted, isBookmarked };
-            })).then(results => results.filter(Boolean));
+            }
             return NextResponse.json(detailedUserTweets);
         }
         
         // Fetch all tweets
         const allTweets = await tweetCollection.find({}).sort({ createdAt: -1 }).toArray();
-        
-        // Get retweets dari currentUser
-        let allTweetsWithRetweets: any[] = allTweets;
-        if (currentUser) {
-            const userRetweets = await retweetCollection.find({ retweetedBy: currentUser }).toArray();
-            const retweetedPostIds = new Set(userRetweets.map(r => (r.tweetId as any).toString()));
-            
-            // Filter out posts yang sudah di-retweet
-            const filteredTweets = allTweets.filter(tweet => !retweetedPostIds.has((tweet._id as any).toString()));
-            
-            const retweetedPosts = await Promise.all(
-                userRetweets.map(async (retweet) => {
-                    const originalPost = await tweetCollection.findOne({ _id: retweet.tweetId });
-                    if (!originalPost) return null;
-                    return {
-                        ...originalPost,
-                        type: "Retweet",
-                        isRetweeted: true
-                    };
-                })
-            ).then(results => results.filter(Boolean));
-            
-            // Gabung & sort (now without duplicates)
-            allTweetsWithRetweets = [...filteredTweets, ...retweetedPosts].sort((a, b) => {
-                const dateA = (a as any)?.createdAt ? new Date((a as any).createdAt).getTime() : 0;
-                const dateB = (b as any)?.createdAt ? new Date((b as any).createdAt).getTime() : 0;
-                return dateB - dateA;
-            });
-        }
-        
-        const detailedAllTweets = await Promise.all(allTweetsWithRetweets.map(async (tweet) => {
+        let detailedAllTweets = await Promise.all(allTweets.map(async (tweet) => {
             if (!tweet) return null;
-            const isLiked = await likeCollection.findOne({ likedBy: currentUser, tweetId: (tweet as any)._id }) !== null;
-            const isRetweeted = await retweetCollection.findOne({ retweetedBy: currentUser, tweetId: (tweet as any)._id }) !== null;
-            const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: currentUser, tweetId: (tweet as any)._id }) !== null;
+            const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null;
+            const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;
+            const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweet._id }) !== null;
             return { ...tweet, isLiked, isRetweeted, isBookmarked };
         })).then(results => results.filter(Boolean));
+        
+        // Get retweets from currentUser
+        const userRetweets = await retweetCollection.find({ retweetedBy: userObject._id }).toArray();
+        
+        const retweetedPosts = await Promise.all(
+            userRetweets.map(async (retweet) => {
+                const originalPost = await tweetCollection.findOne({ _id: retweet.tweetId });
+                if (!originalPost) return null;
+                
+                const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: originalPost._id }) !== null;
+                const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: originalPost._id }) !== null;
+                return { ...originalPost, type: "Retweet", isLiked, isRetweeted: true, isBookmarked, retweetedAt: retweet.createdAt };
+            })
+        ).then(results => results.filter(Boolean));
+        
+        // Gabung & sort (now without duplicates)
+        detailedAllTweets = [...detailedAllTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
+            const timeOf = (t) => {
+                if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
+                else return new Date(t.createdAt).getTime();
+            };
+            return timeOf(tweetB) - timeOf(tweetA);
+        });
         return NextResponse.json(detailedAllTweets);
     }
     return NextResponse.json({ message: "No tweets found" }, { status: 404 });
@@ -150,17 +150,16 @@ export async function POST(req: NextRequest) {
         const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
         const newTweet = {
             author: {
-                userId: authorObject?.userId,
                 name: authorObject?.name,
                 username: authorObject?.username,
-                avatar: authorObject?.media.profileImage
+                avatar: authorObject?.media.avatar,
             },
-            content,
+            content: content.trim(),
             media: media || [],
             parentTweetId: refObject?._id,
             type: type || "Original",
             stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
-            createdAt: new Date().toISOString()
+            createdAt: new Date()
         };
         const result = await tweetCollection.insertOne(newTweet);
 
