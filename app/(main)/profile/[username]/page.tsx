@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Post, User } from "@/lib/types";
 import TweetCard from "@/components/tweet/TweetCard";
+import FollowButton from "@/components/ui/FollowButton";
 import Image from "next/image";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
@@ -20,9 +21,25 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       const params = new URLSearchParams({ username: String(username) });
       if (currentUser) params.set("currentUser", currentUser);
 
-      if (activeTab === "Replies") params.set("includeReplies", "true");
-      else if (activeTab === "Media") params.set("mediaOnly", "true");
-      else if (activeTab === "Likes") params.set("likedOnly", "true");
+      if (activeTab === "Replies") {
+        params.set("type", "replies");
+      } else if (activeTab === "Media") {
+        params.set("type", "media");
+      } else if (activeTab === "Likes") {
+        params.set("type", "likes");
+      } else if (activeTab === "Retweets") {
+        // For retweets, fetch from retweets API
+        const retweetRes = await fetch(`/api/retweets?username=${username}`);
+        const retweetData = await retweetRes.json();
+        setUserPosts(retweetData.retweets?.map((rt: any) => ({
+          ...rt.tweet,
+          type: 'Retweet',
+          retweetedBy: username,
+          retweetedAt: rt.createdAt
+        })) || []);
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(`/api/post?${params.toString()}`);
       const data = await res.json();
@@ -110,12 +127,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 Edit profile
               </button>
             ) : (
-              <button 
-                onClick={() => alert('Follow/unfollow functionality not implemented yet.')}
-                className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
-              >
-                Follow
-              </button>
+              <FollowButton 
+                targetUsername={username}
+                currentUser={currentUser}
+                initialIsFollowing={false}
+                onFollowChange={(isFollowing) => {
+                  // Update UI if needed
+                  console.log(`${isFollowing ? 'Following' : 'Unfollowed'} ${username}`);
+                }}
+              />
             )}
           </div>
 
@@ -154,7 +174,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <div className="flex overflow-x-auto scrollbar-hide">
-          {["Posts", "Replies", "Media", "Likes"].map((tab) => (
+          {["Posts", "Replies", "Retweets", "Media", "Likes"].map((tab) => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)}

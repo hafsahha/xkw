@@ -19,6 +19,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   const [isLoadingLike, setIsLoadingLike] = useState(false);
   const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isRetweetDropdownOpen, setIsRetweetDropdownOpen] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -30,36 +31,49 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
       if (!optionsRef.current) return;
-      if (target && !optionsRef.current.contains(target)) setIsOptionOpen(false);
+      if (target && !optionsRef.current.contains(target)) {
+        setIsOptionOpen(false);
+        setIsRetweetDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
   const handleLike = async () => {
-    if (isLoadingLike) return; // Prevent duplicate clicks
+    if (isLoadingLike || !currentUser) return;
     
-    setIsLiked(!isLiked);
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState);
     setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }));
     setIsLoadingLike(true);
 
     try {
-      await fetch('/api/like', {
+      const response = await fetch('/api/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+        body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(result.message);
+      } else {
+        console.error("Failed to toggle like");
+        setIsLiked(!newLikedState);
+        setLocalStats(prev => ({ ...prev, likes: newLikedState ? prev.likes - 1 : prev.likes + 1 }));
+      }
     } catch (error) {
       console.error("Like error:", error);
-      setIsLiked(!isLiked);
-      setLocalStats(prev => ({ ...prev, likes: isLiked ? prev.likes + 1 : prev.likes - 1 }));
+      setIsLiked(!newLikedState);
+      setLocalStats(prev => ({ ...prev, likes: newLikedState ? prev.likes - 1 : prev.likes + 1 }));
     } finally {
       setIsLoadingLike(false);
     }
   };
 
   const handleRetweet = async () => {
-    if (isLoadingRetweet) return; // Prevent duplicate clicks
+    if (isLoadingRetweet || !currentUser) return;
     
     const newRetweetState = !isRetweeted;
     setIsRetweeted(newRetweetState);
@@ -77,13 +91,13 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
       });
 
       if (response.ok) {
-        // Trigger callback untuk refresh feed
+        const result = await response.json();
+        console.log(result.message);
         if (onRetweetSuccess) {
           onRetweetSuccess();
         }
       } else {
         console.error("Failed to toggle retweet");
-        // Revert state jika error
         setIsRetweeted(!newRetweetState);
         setLocalStats(prev => ({ ...prev, retweets: newRetweetState ? prev.retweets - 1 : prev.retweets + 1 }));
       }
@@ -97,7 +111,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   };
 
   const handleBookmark = async () => {
-    if (isLoadingBookmark) return;
+    if (isLoadingBookmark || !currentUser) return;
     
     const newBookmarkState = !isBookmarked;
     setIsBookmarked(newBookmarkState);
@@ -148,57 +162,78 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   };
 
   return (
-    <article 
-      className="border-b border-gray-200 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
-      onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
-    >
-      {/* Retweet indicator */}
-      {tweet.type === 'Retweet' && (
-        <div className="flex items-center mb-2 text-gray-500 text-sm">
-          <Repeat2 className="h-4 w-4 mr-2" />
-          <span>You retweeted</span>
-        </div>
-      )}
-
-      <div className="flex space-x-3">
-        {/* Avatar */}
-        <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="h-fit">
-          <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
-        </Link>
-        
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-center space-x-1">
-            <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1">
-              <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
-                {tweet.author.name}
-              </h3>
-              <span className="text-gray-500">@{tweet.author.username}</span>
-            </Link>
-            <span className="text-gray-500">·</span>
-            <time className="text-gray-500 text-sm">
-              {formatTime(tweet.createdAt)}
-            </time>
-            <div ref={optionsRef} className="relative ml-auto">
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
-              >
-                <Ellipsis className="h-4 w-4" />
-              </button>
-              {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
-            </div>
+    <>
+      <article 
+        className="border-b border-gray-200 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+        onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
+      >
+        {/* Retweet indicator */}
+        {tweet.type === 'Retweet' && (
+          <div className="flex items-center mb-2 text-gray-500 text-sm">
+            <Repeat2 className="h-4 w-4 mr-2" />
+            <span>You retweeted</span>
           </div>
+        )}
 
-          {/* Tweet Content */}
-          <div className="flex flex-col mt-1 gap-1">
-            <p className="text-gray-900 whitespace-pre-wrap">{tweet.content}</p>
-            {tweet.media.length > 0 && (
-              <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
+        <div className="flex space-x-3">
+          {/* Avatar */}
+          <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="h-fit">
+            <Image src={'/img/' + tweet.author.avatar} alt={tweet.author.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+          </Link>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Header */}
+            <div className="flex items-center space-x-1">
+              <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1">
+                <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                  {tweet.author.name}
+                </h3>
+                <span className="text-gray-500">@{tweet.author.username}</span>
+              </Link>
+              <span className="text-gray-500">·</span>
+              <time className="text-gray-500 text-sm">
+                {formatTime(tweet.createdAt)}
+              </time>
+              
+              {/* Options */}
+              <div className="ml-auto relative" ref={optionsRef}>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <Ellipsis className="h-4 w-4 text-gray-500" />
+                </button>
+                
+                <FloatingModal isOpen={isOptionOpen} onClose={() => setIsOptionOpen(false)}>
+                  <div className="py-1">
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
+                      Delete
+                    </button>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
+                      Edit
+                    </button>
+                  </div>
+                </FloatingModal>
+              </div>
+            </div>
+
+            {/* Content Text */}
+            <p className="text-gray-900 mt-1 whitespace-pre-wrap">
+              {tweet.content}
+            </p>
+
+            {/* Media */}
+            {tweet.media && tweet.media.length > 0 && (
+              <div className={`mt-3 ${tweet.media.length > 1 ? 'grid gap-2' : ''} ${
+                tweet.media.length === 2 ? 'grid-cols-2' :
+                tweet.media.length === 3 ? 'grid-cols-2 grid-rows-2' :
+                tweet.media.length === 4 ? 'grid-cols-2 grid-rows-2' : ''
+              } max-h-96 rounded-xl overflow-hidden`}>
                 {tweet.media.map((mediaUrl, idx) => (
                   <Link
-                    key={idx} onClick={(e) => e.stopPropagation()}
+                    key={idx}
+                    onClick={(e) => e.stopPropagation()}
                     href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
                     className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
                   >
@@ -223,25 +258,54 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
               <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
                 <MessageCircleMore className="h-4 w-4" />
               </div>
-                <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
+              <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
             </button>
 
             {/* Retweet with dropdown */}
             <div className="relative">
               <button 
-                onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuoteModalOpen(true); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsRetweetDropdownOpen(!isRetweetDropdownOpen);
+                }}
                 disabled={isLoadingRetweet}
                 className={`flex items-center space-x-2 transition-colors group ${
                   isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
                 } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Left click to retweet, right click to quote tweet"
               >
                 <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
                   <Repeat2 className="h-4 w-4" />
                 </div>
                 <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
               </button>
+              
+              {/* Dropdown Menu */}
+              {isRetweetDropdownOpen && (
+                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsRetweetDropdownOpen(false);
+                      handleRetweet();
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
+                  >
+                    <Repeat2 className="h-4 w-4" />
+                    <span>{isRetweeted ? 'Undo retweet' : 'Retweet'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsRetweetDropdownOpen(false);
+                      setIsQuoteModalOpen(true);
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
+                  >
+                    <Quote className="h-4 w-4" />
+                    <span>Quote Tweet</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Like */}
@@ -262,9 +326,10 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
               {/* Bookmark */}
               <button 
                 onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+                disabled={isLoadingBookmark}
                 className={`flex items-center space-x-2 transition-colors group ${
                   isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
-                }`}
+                } ${isLoadingBookmark ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
                   <Bookmark className={`h-4 w-4 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
@@ -283,7 +348,7 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
             </div>
           </div>
         </div>
-      </div>
+      </article>
 
       {/* Quote Tweet Modal */}
       {currentUser && (
@@ -295,6 +360,6 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
           onQuoteSuccess={onRetweetSuccess}
         />
       )}
-    </article>
+    </>
   );
 }
