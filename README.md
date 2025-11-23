@@ -213,10 +213,6 @@ Untuk mempelajari lebih lanjut tentang teknologi yang digunakan dalam proyek ini
 - [Dokumentasi MongoDB](https://www.mongodb.com/docs/) - Pelajari tentang MongoDB untuk manajemen database.
 - [Dokumentasi Tailwind CSS](https://tailwindcss.com/docs) - Pelajari tentang framework CSS berbasis utilitas.
 
-## Berkontribusi
-
-Kontribusi sangat diterima! Jika Anda ingin berkontribusi pada XKW, silakan fork repositori ini dan kirimkan pull request.
-
 ## Lisensi
 
 Proyek ini dilisensikan di bawah Lisensi MIT. Lihat file LICENSE untuk detail lebih lanjut.
