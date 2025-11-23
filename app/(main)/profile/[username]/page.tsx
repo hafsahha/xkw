@@ -35,7 +35,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   useEffect(() => {
     if (currentUser) fetchPosts();
-  }, [activeTab, username, currentUser]);
+  }, [activeTab, currentUser]);
 
   useEffect(() => {
     async function fetchUserData() {
