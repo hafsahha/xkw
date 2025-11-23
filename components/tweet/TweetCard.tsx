@@ -37,6 +37,16 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     return () => clearTimeout(t);
   }, [])
 
+  // Sync state when tweet prop changes (for consistency across pages)
+  useEffect(() => {
+    if (tweet) {
+      setLocalStats(tweet.stats);
+      setIsBookmarked(tweet.isBookmarked || false);
+      setIsRetweeted(tweet.isRetweeted || false);
+      setIsLiked(tweet.isLiked || false);
+    }
+  }, [tweet.stats, tweet.isBookmarked, tweet.isRetweeted, tweet.isLiked]);
+
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
@@ -325,8 +335,8 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
                     <BarChart2 className="h-[18px] w-[18px] text-gray-500 group-hover:text-sky-500" />
                   </div>
                    <span className="text-[13px] text-gray-500 group-hover:text-sky-500">
-                    {/* Random view count or from props */}
-                    {formatNumber(tweet.stats.views || 0)} 
+                    {/* Random view count for demo purposes */}
+                    {formatNumber(Math.floor(Math.random() * 1000) + 100)} 
                    </span>
               </button>
 

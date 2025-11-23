@@ -70,22 +70,19 @@ export async function POST(req: NextRequest) {
         const notificationsCollection = database.collection("notifications");
 
         const body = await req.json();
-        const { followerId, followingId } = body;
+        const { followerUsername, followingUsername } = body;
         
-        if (!followerId || !followingId) {
+        if (!followerUsername || !followingUsername) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        if (followerId === followingId) {
+        if (followerUsername === followingUsername) {
             return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
         }
 
-        const followerObjectId = new ObjectId(followerId);
-        const followingObjectId = new ObjectId(followingId);
-
         const [follower, following] = await Promise.all([
-            usersCollection.findOne({ _id: followerObjectId }),
-            usersCollection.findOne({ _id: followingObjectId })
+            usersCollection.findOne({ username: followerUsername }),
+            usersCollection.findOne({ username: followingUsername })
         ]);
 
         if (!follower || !following) {
@@ -94,8 +91,8 @@ export async function POST(req: NextRequest) {
 
         // Check if already following
         const existingFollow = await followsCollection.findOne({ 
-            followerId: followerObjectId, 
-            followingId: followingObjectId 
+            followerId: follower._id, 
+            followingId: following._id 
         });
         
         if (existingFollow) {
@@ -104,8 +101,8 @@ export async function POST(req: NextRequest) {
             
             // Update follower/following counts
             await Promise.all([
-                usersCollection.updateOne({ _id: followerObjectId }, { $inc: { "stats.following": -1 } }),
-                usersCollection.updateOne({ _id: followingObjectId }, { $inc: { "stats.followers": -1 } })
+                usersCollection.updateOne({ _id: follower._id }, { $inc: { "stats.following": -1 } }),
+                usersCollection.updateOne({ _id: following._id }, { $inc: { "stats.followers": -1 } })
             ]);
             
             return NextResponse.json({ 
@@ -115,8 +112,8 @@ export async function POST(req: NextRequest) {
         } else {
             // Follow
             const newFollow = {
-                followerId: followerObjectId,
-                followingId: followingObjectId,
+                followerId: follower._id,
+                followingId: following._id,
                 createdAt: new Date()
             };
             
@@ -124,13 +121,13 @@ export async function POST(req: NextRequest) {
             
             // Update follower/following counts
             await Promise.all([
-                usersCollection.updateOne({ _id: followerObjectId }, { $inc: { "stats.following": 1 } }),
-                usersCollection.updateOne({ _id: followingObjectId }, { $inc: { "stats.followers": 1 } })
+                usersCollection.updateOne({ _id: follower._id }, { $inc: { "stats.following": 1 } }),
+                usersCollection.updateOne({ _id: following._id }, { $inc: { "stats.followers": 1 } })
             ]);
             
             // Create notification
             await notificationsCollection.insertOne({
-                receiverId: followingObjectId,
+                receiverId: following._id,
                 actor: {
                     userId: follower._id,
                     username: follower.username,

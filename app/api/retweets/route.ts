@@ -1,5 +1,48 @@
-import { NextResponse } from "next/server";
-import { userCollection, tweetCollection, retweetsCollection, notificationsCollection } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import db from "@/lib/db";
+import { ObjectId } from "mongodb";
+
+export async function GET(req: NextRequest) {
+    try {
+        const database = await db;
+        if (!database) {
+            return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
+        }
+        
+        const retweetsCollection = database.collection("retweets");
+        const userCollection = database.collection("users");
+
+        const { searchParams } = new URL(req.url);
+        const tweetId = searchParams.get("tweetId");
+        const username = searchParams.get("username");
+
+        if (tweetId) {
+            // Get users who retweeted this tweet
+            const retweets = await retweetsCollection.find({ originalTweetId: new ObjectId(tweetId) }).toArray();
+            const retweeters = await Promise.all(retweets.map(async (retweet) => {
+                return await userCollection.findOne({ _id: retweet.userId }, { projection: { password: 0 } });
+            }));
+            return NextResponse.json({ retweeters: retweeters.filter(Boolean), count: retweeters.length });
+        }
+
+        if (username) {
+            // Get retweets by user
+            const user = await userCollection.findOne({ username });
+            if (!user) {
+                return NextResponse.json({ error: "User not found" }, { status: 404 });
+            }
+            const userRetweets = await retweetsCollection.find({ userId: user._id }).sort({ createdAt: -1 }).toArray();
+            return NextResponse.json({ retweets: userRetweets, count: userRetweets.length });
+        }
+
+        // Get all retweets
+        const allRetweets = await retweetsCollection.find({}).sort({ createdAt: -1 }).toArray();
+        return NextResponse.json({ retweets: allRetweets, count: allRetweets.length });
+
+    } catch (error) {
+        return NextResponse.json({ error: "Error fetching retweets", details: error }, { status: 500 });
+    }
+}
 
 export async function POST(req: Request) {
     try {
