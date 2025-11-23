@@ -102,7 +102,14 @@ export default function BookmarksPage() {
       ) : (
         <div className="divide-y divide-gray-200">
           {bookmarkedTweets.map((tweet) => (
-            <TweetCard key={tweet._id} tweet={tweet} />
+            <TweetCard
+              key={tweet._id}
+              tweet={{
+                ...tweet,
+                isLiked: tweet.stats.likes > 0, // Ensure isLiked state is passed
+                isBookmarked: true, // Since it's in bookmarks, set isBookmarked to true
+              }}
+            />
           ))}
         </div>
       )}
