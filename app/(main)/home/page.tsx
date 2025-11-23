@@ -11,9 +11,23 @@ export default function Home() {
   const [tweets, setTweets] = useState<Post[] | null>(null);
 
   const fetchFeed = async (tab: 'foryou' | 'following') => {
-    const response = await fetch(`/api/post?currentUser=${loggedUser}`);
+    const params = new URLSearchParams();
+    if (loggedUser) params.set("currentUser", loggedUser);
+    if (tab === "following") params.set("filter", "following");
+
+    const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
-    setTweets(data as Post[]);
+
+    // Filter tweets to include only those from followed users, the current user, and their retweets
+    const filteredTweets = tab === "following"
+      ? data.filter((tweet: Post) =>
+          tweet.author.username === loggedUser ||
+          currentUser?.following.includes(tweet.author.username) ||
+          (tweet.type === "Retweet" && currentUser?.following.includes(tweet.author.username))
+        )
+      : data; // For 'For you', show all tweets
+
+    setTweets(filteredTweets as Post[]);
   }
 
   useEffect(() => {
@@ -28,37 +42,14 @@ export default function Home() {
       const data = await response.json();
       setCurrentUser(data as User);
     }
-    if (loggedUser) fetchUser(loggedUser);
+
+    async function fetchFeedOnUserLoad() {
+      const response = await fetch(`/api/post?currentUser=${loggedUser}`);
+      const data = await response.json();
+      setTweets(data as Post[]);
+    }
+    if (loggedUser) { fetchUser(loggedUser); fetchFeedOnUserLoad(); };
   }, [loggedUser])
-
-  const fetchFeed = async (tab: 'foryou' | 'following') => {
-    const params = new URLSearchParams();
-    if (loggedUser) params.set("currentUser", loggedUser);
-    if (tab === "following") params.set("filter", "following");
-
-    const response = await fetch(`/api/post?${params.toString()}`);
-    const data = await response.json();
-
-    // Filter tweets to include only those from followed users, the current user, and their retweets
-    const filteredTweets = tab === "following"
-      ? data.filter((tweet: Post) =>
-          tweet.author.username === loggedUser ||
-          currentUser?.following.includes(tweet.author.username) ||
-          (tweet.type === "Retweet" && tweet.parentTweetId?.author && currentUser?.following.includes(tweet.parentTweetId.author.username))
-        )
-      : data; // For 'For you', show all tweets
-
-    setTweets(filteredTweets);
-  }
-
-  useEffect(() => {
-    if (loggedUser) fetchFeed(activeTab); // Fetch feed for the initial tab
-  }, [loggedUser, activeTab]); // Add activeTab dependency to refetch feed when tab changes
-
-  const handleTweetPosted = () => {
-    // Refresh feed setelah tweet baru diposting
-    fetchFeed(activeTab);
-  };
 
   return (
     <>
@@ -89,7 +80,7 @@ export default function Home() {
       </div>
 
       {/* Tweet Composer */}
-      {currentUser ? <TweetComposer user={currentUser} onTweetPosted={fetchFeed} /> : <TweetComposer loading />}
+      {currentUser ? <TweetComposer user={currentUser} onTweetPosted={() => fetchFeed(activeTab)} /> : <TweetComposer loading />}
 
       {/* Tweet Feed */}
       {tweets ? (
