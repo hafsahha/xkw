@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Post, User } from "@/lib/types";
 import TweetCard from "@/components/tweet/TweetCard";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -138,14 +139,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
             {/* Stats */}
             <div className="flex space-x-6">
-              <div className="flex space-x-1">
+              <Link href={`/profile/${username}/following`} className="flex space-x-1 hover:underline">
                 <span className="font-semibold">{userData.stats.following}</span>
                 <span className="text-gray-500">Following</span>
-              </div>
-              <div className="flex space-x-1">
+              </Link>
+              <Link href={`/profile/${username}/followers`} className="flex space-x-1 hover:underline">
                 <span className="font-semibold">{userData.stats.followers}</span>
                 <span className="text-gray-500">Followers</span>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
