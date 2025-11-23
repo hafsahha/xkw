@@ -8,13 +8,22 @@ import Link from "next/link";
 import QuoteTweetModal from "./QuoteTweetModal";
 
 export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, onRetweetSuccess?: () => void }) {
+  // Safe guard for incomplete data
+  if (!tweet || !tweet.author || !tweet.stats) {
+    return (
+      <div className="border-b border-gray-200 p-4">
+        <div className="text-gray-500">Loading tweet...</div>
+      </div>
+    );
+  }
+
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [localStats, setLocalStats] = useState(tweet.stats);
-  const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
-  const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted);
-  const [isLiked, setIsLiked] = useState(tweet.isLiked);
+  const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked || false);
+  const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted || false);
+  const [isLiked, setIsLiked] = useState(tweet.isLiked || false);
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
   const [isLoadingLike, setIsLoadingLike] = useState(false);
   const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
@@ -205,7 +214,11 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
                   <Ellipsis className="h-4 w-4 text-gray-500" />
                 </button>
                 
-                <FloatingModal isOpen={isOptionOpen} onClose={() => setIsOptionOpen(false)}>
+                <FloatingModal 
+                  isOpen={isOptionOpen} 
+                  onClose={() => setIsOptionOpen(false)}
+                  tweet={tweet}
+                >
                   <div className="py-1">
                     <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
                       Delete

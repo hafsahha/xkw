@@ -31,12 +31,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         // For retweets, fetch from retweets API
         const retweetRes = await fetch(`/api/retweets?username=${username}`);
         const retweetData = await retweetRes.json();
-        setUserPosts(retweetData.retweets?.map((rt: any) => ({
-          ...rt.tweet,
-          type: 'Retweet',
-          retweetedBy: username,
-          retweetedAt: rt.createdAt
-        })) || []);
+        setUserPosts(retweetData.retweets?.map((rt: any) => {
+          if (!rt.tweet || !rt.tweet.author) return null;
+          return {
+            ...rt.tweet,
+            type: 'Retweet',
+            retweetedBy: username,
+            retweetedAt: rt.createdAt
+          };
+        }).filter(Boolean) || []);
         setLoading(false);
         return;
       }
@@ -197,7 +200,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
       ) : (
         <div className="min-h-screen divide-y divide-gray-200">
-          {userPosts!.map((tweet) => <TweetCard key={tweet.tweetId} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
+          {userPosts?.filter(tweet => tweet && tweet.author && tweet.stats).map((tweet) => (
+            <TweetCard key={tweet.tweetId || Math.random()} tweet={tweet} onRetweetSuccess={fetchPosts} />
+          )) || []}
         </div>
       )}
     </div>
