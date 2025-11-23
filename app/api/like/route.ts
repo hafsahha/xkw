@@ -135,32 +135,3 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Error processing like", details: error }, { status: 500 });
     }
 }
-    const tweetCollection = database?.collection("tweets");
-
-    if (likeCollection && tweetCollection) {
-        const body = await req.json();
-        const { username, tweetId } = body;
-        if (!username || !tweetId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
-
-        const tweetObject = await tweetCollection.findOne({ tweetId: tweetId });
-        if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
-
-        const existingLike = await likeCollection.findOne({ likedBy: username, tweetId: tweetObject._id });
-        if (existingLike) {
-            // If like exists, remove it (unlike)
-            await likeCollection.deleteOne({ _id: existingLike._id });
-            await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": -1 } });
-            return NextResponse.json({ message: "Post unliked successfully" }, { status: 200 });
-        } else {
-            // If like doesn't exist, create it
-            const newLike = {
-                tweetId: tweetObject._id,
-                likedBy: username,
-                createdAt: new Date().toISOString(),
-            };
-            await likeCollection.insertOne(newLike);
-            await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": 1 } });
-            return NextResponse.json({ message: "Post liked successfully" }, { status: 201 });
-        }
-    }
-}
