@@ -30,12 +30,18 @@ export default function Home() {
     params.set("currentUser", loggedUser!);
 
     if (activeTab === "following") {
-      params.set("filter", "following"); // Add filter for following tab
+      params.set("filter", "following"); // Ensure filtering for following tab
     }
 
     const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
-    setTweets(data as Post[]);
+
+    // Filter tweets to include only those from followed users or the current user
+    const filteredTweets = data.filter((tweet: Post) =>
+      tweet.author.username === loggedUser || currentUser?.following.includes(tweet.author.username)
+    );
+
+    setTweets(filteredTweets);
   }
 
   useEffect(() => {

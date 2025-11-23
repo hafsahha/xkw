@@ -232,7 +232,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
       ) : (
         <div className="min-h-screen divide-y divide-gray-200">
-          {userPosts!.map((tweet) => <TweetCard key={tweet.tweetId} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
+          {userPosts!.map((tweet, index) => (
+            <TweetCard key={`${tweet.tweetId}-${index}`} tweet={tweet} onRetweetSuccess={fetchPosts} />
+          ))}
         </div>
       )}
     </div>
