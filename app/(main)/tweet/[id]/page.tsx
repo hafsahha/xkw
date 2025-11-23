@@ -12,8 +12,14 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [loggedUser, setLoggedUser] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState<boolean | null>(null);
+  const [isRetweeted, setIsRetweeted] = useState<boolean | null>(null);
+  const [isLiked, setIsLiked] = useState<boolean | null>(null);
   const [tweetStats, setTweetStats] = useState<PostStats | null>(null)
   const [tweet, setTweet] = useState<Post | null>(null);
+  const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
+  const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
+  const [isLoadingLike, setIsLoadingLike] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isReplying, setIsReplying] = useState(false);
   const { id } = React.use(params);
@@ -47,6 +53,9 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     async function fetchTweet() {
       const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
       const data = await response.json();
+      setIsBookmarked(data.isBookmarked);
+      setIsRetweeted(data.isRetweeted);
+      setIsLiked(data.isLiked);
       setTweetStats(data.stats as PostStats)
       setTweet(data as Post);
     }
@@ -90,6 +99,62 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     }
   };
 
+  const handleLike = async () => {
+    if (isLoadingLike) return; // Prevent duplicate clicks
+    
+    setIsLiked(!isLiked);
+    setTweetStats(prev => prev ? { ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 } : null);
+    setIsLoadingLike(true);
+
+    try {
+      await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedUser, tweetId: id })
+      });
+    } catch {
+      setIsLiked(!isLiked);
+      setTweetStats(prev => prev ? { ...prev, likes: isLiked ? prev.likes + 1 : prev.likes - 1 } : null);
+    } finally { setIsLoadingLike(false) }
+  };
+
+  const handleRetweet = async () => {
+    if (isLoadingRetweet) return; // Prevent duplicate clicks
+    
+    setIsRetweeted(!isRetweeted);
+    setTweetStats(prev => prev ? { ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 } : null);
+    setIsLoadingRetweet(true);
+    
+    try {
+      await fetch('/api/retweets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedUser, postId: id })
+      });
+    } finally { setIsLoadingRetweet(false) }
+  };
+
+  const handleBookmark = async () => {
+    if (isLoadingBookmark) return; // Prevent duplicate clicks
+
+    setIsBookmarked(!isBookmarked);
+    setIsLoadingBookmark(true);
+
+    try {
+      await fetch('/api/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedUser, tweetId: id })
+      });
+    } finally { setIsLoadingBookmark(false) }
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
   return (
     <>
       {/* Header */}
@@ -106,20 +171,20 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* Main Tweet */}
-      {tweet ? (
+      {tweet && tweetStats ? (
         <article className="p-4 pb-2 border-b border-gray-200">
           <div className="flex flex-col">
-            <div className="flex space-x-3 mb-2">
-              <Link href={`/profile/${tweet!.author.username}`}>
-                <Image src={`/img/${tweet!.author.avatar}`} className="w-10 h-10 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
+            <div className="flex gap-3 mb-2">
+              <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
+                <Image src={`/img/${tweet.author.avatar}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
               </Link>
               <div className="flex w-full justify-between">
                 <div className="flex flex-col space-x-1 mb-2">
-                  <Link href={`/profile/${tweet!.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
-                    {tweet!.author.name}
+                  <Link href={`/profile/${tweet.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
+                    {tweet.author.name}
                   </Link>
-                  <Link href={`/profile/${tweet!.author.username}`} className="w-fit text-gray-500">
-                    @{tweet!.author.username}
+                  <Link href={`/profile/${tweet.author.username}`} className="w-fit text-gray-500">
+                    @{tweet.author.username}
                   </Link>
                 </div>
                 <div ref={optionsRef} className="relative">
@@ -134,7 +199,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
               </div>
             </div>
             <div className="mb-4">
-              <p className="text-gray-900 text-xl leading-relaxed">{tweet!.content}</p>
+              <p className="text-gray-900 text-xl leading-relaxed">{tweet.content}</p>
               {tweet.media.length > 0 && (
                 <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
                   {tweet.media.map((mediaUrl, idx) => (
@@ -145,7 +210,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                     >
                       <Image
                         src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
-                        className={`${tweet.media.length === 1 ? 'rounded-xl' : ''} object-cover`}
+                        className={`${tweet.media.length === 1 ? 'rounded-xl' : 'w-full h-full'} object-cover`}
                         width={1000} height={1000}
                       />
                     </Link>
@@ -154,7 +219,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
               )}
             </div>
             <div className="text-gray-500 mb-2">
-              {new Date(tweet!.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet!.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              {new Date(tweet.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
             </div>
               
             {/* Interaction Stats */}
@@ -180,18 +245,53 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-around pt-2 border-gray-200">
-              <button className="p-2 hover:bg-pink-50 rounded-full transition-colors group">
-                <MessageCircleMore className="w-5 h-5 text-gray-500 group-hover:text-pink-500" />
+            <div className="flex items-center justify-around py-1 border-y border-gray-200">
+              {/* Reply */}
+              <button className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group">
+                <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
+                  <MessageCircleMore className="h-5 w-5" />
+                </div>
+                  <span className="text-sm">{tweetStats.replies > 0 ? formatNumber(tweetStats.replies) : ' '}</span>
               </button>
-              <button className="p-2 hover:bg-green-50 rounded-full transition-colors group">
-                <Repeat2 className={`w-5 h-5 group-hover:text-green-500 ${tweet!.isRetweeted ? 'text-green-500 fill-green-500' : 'text-gray-500'}`} />
+
+              {/* Retweet */}
+              <button 
+                onClick={handleRetweet}
+                disabled={isLoadingRetweet}
+                className={`flex items-center space-x-2 transition-colors group ${
+                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
+                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                  <Repeat2 className="h-5 w-5" />
+                </div>
+                <span className="text-sm">{tweetStats.retweets > 0 ? formatNumber(tweetStats.retweets) : ' '}</span>
               </button>
-              <button className="p-2 hover:bg-red-50 rounded-full transition-colors group">
-                <Heart className={`w-5 h-5 group-hover:text-red-500 ${tweet!.isLiked ? 'text-red-500 fill-red-500' : 'text-gray-500'}`} />
+
+              {/* Like */}
+              <button 
+                onClick={handleLike}
+                disabled={isLoadingLike}
+                className={`flex items-center space-x-2 transition-colors group ${
+                  isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
+                  <Heart className={`h-5 w-5 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
+                </div>
+                <span className="text-sm">{tweetStats.likes > 0 ? formatNumber(tweetStats.likes) : ' '}</span>
               </button>
-              <button className="p-2 hover:bg-blue-50 rounded-full transition-colors group">
-                <Bookmark className={`w-5 h-5 group-hover:text-blue-500 ${tweet!.isBookmarked ? 'text-blue-500 fill-blue-500' : 'text-gray-500'}`} />
+              
+              {/* Bookmark */}
+              <button 
+                onClick={handleBookmark}
+                className={`flex items-center transition-colors group ${
+                  isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
+                }`}
+              >
+                <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                  <Bookmark className={`h-5 w-5 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
+                </div>
               </button>
             </div>
           </div>
@@ -232,7 +332,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
       <div className="p-4 border-b border-gray-200">
         <div className="flex space-x-3">
           {currentUser ?
-            <Image src={`/img/${currentUser!.media.profileImage}`} className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
+            <Image src={`/img/${currentUser.media.avatar ?? "default_avatar.png"}`} className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0" width={40} height={40} alt="User avatar" />
           :
             <div className="w-10 h-10 bg-gray-300 rounded-full animate-pulse flex-shrink-0"></div>
           }
