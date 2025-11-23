@@ -12,6 +12,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [isMyself, setIsMyself] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Posts");
+  const [isFollowing, setIsFollowing] = useState(false);
   const { username } = React.use(params);
 
   const fetchPosts = async () => {
@@ -52,6 +53,47 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     fetchUserData();
     return () => clearTimeout(t);
   }, [username]);
+
+  useEffect(() => {
+    const checkFollowingStatus = () => {
+      const loggedInUsername = currentUser;
+      if (!loggedInUsername || !userData) return false;
+      return userData.followers.includes(loggedInUsername);
+    };
+
+    setIsFollowing(checkFollowingStatus());
+  }, [userData, currentUser]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+      return alert("You must be logged in to follow users.");
+    }
+
+    try {
+      const response = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          follower: currentUser,
+          followee: userData?.username,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setIsFollowing((prev) => !prev);
+        alert(result.message);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to update follow status");
+      }
+    } catch (error) {
+      console.error("Error toggling follow status:", error);
+      alert("An error occurred. Please try again.");
+    }
+  };
 
   if (!userData) {
     return (
@@ -111,10 +153,10 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               </button>
             ) : (
               <button 
-                onClick={() => alert('Follow/unfollow functionality not implemented yet.')}
+                onClick={handleFollowToggle}
                 className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
               >
-                Follow
+                {isFollowing ? "Unfollow" : "Follow"}
               </button>
             )}
           </div>

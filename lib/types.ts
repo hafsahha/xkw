@@ -17,6 +17,8 @@ export interface User {
     };
     stats: UserStats;
     createdAt: string;
+    followers: string[]; // Added followers field
+    following: string[]; // Added following field
 }
 
 export interface PostStats {
