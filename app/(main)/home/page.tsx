@@ -41,7 +41,7 @@ export default function Home() {
       ? data.filter((tweet: Post) =>
           tweet.author.username === loggedUser ||
           currentUser?.following.includes(tweet.author.username) ||
-          (tweet.type === "Retweet" && currentUser?.following.includes(tweet.parentTweetId?.author.username))
+          (tweet.type === "Retweet" && tweet.parentTweetId?.author && currentUser?.following.includes(tweet.parentTweetId.author.username))
         )
       : data; // For 'For you', show all tweets
 
