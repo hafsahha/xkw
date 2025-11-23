@@ -43,8 +43,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       const data = await response.json();
       setUserData(data as User);
     }
-    
-    const storedUser = localStorage.getItem('loggedUser')
+
+    const storedUser = localStorage.getItem("loggedUser");
     if (!storedUser) return;
     const t = setTimeout(() => {
       setIsMyself(storedUser === username);
