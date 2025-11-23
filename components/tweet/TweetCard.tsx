@@ -1,10 +1,11 @@
 "use client";
-import { Bookmark, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "lucide-react";
+import { Bookmark, Ellipsis, Heart, MessageCircleMore, Quote, Repeat2, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Post } from "@/lib/types";
 import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
+import QuoteTweetModal from "./QuoteTweetModal";
 
 export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, onRetweetSuccess?: () => void }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
@@ -16,6 +17,8 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
   const [isLiked, setIsLiked] = useState(tweet.isLiked);
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
   const [isLoadingLike, setIsLoadingLike] = useState(false);
+  const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -93,9 +96,36 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
     }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    // TODO: API call
+  const handleBookmark = async () => {
+    if (isLoadingBookmark) return;
+    
+    const newBookmarkState = !isBookmarked;
+    setIsBookmarked(newBookmarkState);
+    setIsLoadingBookmark(true);
+    
+    try {
+      const response = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username: currentUser, 
+          postId: tweet.tweetId
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(result.message);
+      } else {
+        console.error("Failed to toggle bookmark");
+        setIsBookmarked(!newBookmarkState);
+      }
+    } catch (error) {
+      console.error("Bookmark error:", error);
+      setIsBookmarked(!newBookmarkState);
+    } finally {
+      setIsLoadingBookmark(false);
+    }
   };
 
   const formatNumber = (num: number) => {
@@ -196,19 +226,23 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
                 <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
             </button>
 
-            {/* Retweet */}
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
-              disabled={isLoadingRetweet}
-              className={`flex items-center space-x-2 transition-colors group ${
-                isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-              } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                <Repeat2 className="h-4 w-4" />
-              </div>
-              <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
-            </button>
+            {/* Retweet with dropdown */}
+            <div className="relative">
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuoteModalOpen(true); }}
+                disabled={isLoadingRetweet}
+                className={`flex items-center space-x-2 transition-colors group ${
+                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
+                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Left click to retweet, right click to quote tweet"
+              >
+                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                  <Repeat2 className="h-4 w-4" />
+                </div>
+                <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
+              </button>
+            </div>
 
             {/* Like */}
             <button 
@@ -250,6 +284,17 @@ export default function TweetCard({ tweet, onRetweetSuccess }: { tweet: Post, on
           </div>
         </div>
       </div>
+
+      {/* Quote Tweet Modal */}
+      {currentUser && (
+        <QuoteTweetModal
+          isOpen={isQuoteModalOpen}
+          onClose={() => setIsQuoteModalOpen(false)}
+          originalTweet={tweet}
+          currentUser={currentUser}
+          onQuoteSuccess={onRetweetSuccess}
+        />
+      )}
     </article>
   );
 }
