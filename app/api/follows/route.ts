@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMongoClient } from "@/lib/mongodb";
+import db from "@/lib/db";
 import { ObjectId } from "mongodb";
 
 export async function GET(req: NextRequest) {
     try {
-        const client = await getMongoClient();
-        const db = client.db("xkw_social");
-        const followsCollection = db.collection("follows");
-        const usersCollection = db.collection("users");
+        const database = await db;
+        if (!database) {
+            return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
+        }
+        
+        const followsCollection = database.collection("follows");
+        const usersCollection = database.collection("users");
         
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get('userId');
@@ -57,11 +60,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const client = await getMongoClient();
-        const db = client.db("xkw_social");
-        const followsCollection = db.collection("follows");
-        const usersCollection = db.collection("users");
-        const notificationsCollection = db.collection("notifications");
+        const database = await db;
+        if (!database) {
+            return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
+        }
+        
+        const followsCollection = database.collection("follows");
+        const usersCollection = database.collection("users");
+        const notificationsCollection = database.collection("notifications");
 
         const body = await req.json();
         const { followerId, followingId } = body;
