@@ -26,14 +26,21 @@ export default function Home() {
   }, [loggedUser])
 
   const fetchFeed = async () => {
-    const response = await fetch('/api/post?currentUser=' + loggedUser);
+    const params = new URLSearchParams();
+    params.set("currentUser", loggedUser!);
+
+    if (activeTab === "following") {
+      params.set("filter", "following"); // Add filter for following tab
+    }
+
+    const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
     setTweets(data as Post[]);
   }
 
   useEffect(() => {
     if (loggedUser) fetchFeed();
-  }, [loggedUser])
+  }, [loggedUser, activeTab]); // Add activeTab dependency to refetch feed when tab changes
 
   const handleTweetPosted = () => {
     // Refresh feed setelah tweet baru diposting
