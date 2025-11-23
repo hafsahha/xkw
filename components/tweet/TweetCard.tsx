@@ -64,7 +64,7 @@ export default function TweetCard({ tweet, sidebarMode, onRetweetSuccess }: { tw
       const response = await fetch('/api/retweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUser, postId: tweet.tweetId })
+        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
       });
 
       if (response.ok) if (onRetweetSuccess) { onRetweetSuccess() }
