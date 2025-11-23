@@ -29,16 +29,20 @@ export async function POST(req: NextRequest) {
     const database = await db;
     const retweetsCollection = database?.collection("retweets");
     const tweetCollection = database?.collection("tweets");
+    const userCollection = database?.collection("users");
 
-    if (retweetsCollection && tweetCollection) {
+    if (retweetsCollection && tweetCollection && userCollection) {
         const body = await req.json();
-        const { username, postId } = body;
-        if (!username || !postId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+        const { username, tweetId } = body;
+        if (!username || !tweetId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const tweetObject = await tweetCollection.findOne({ tweetId: postId });
+        const tweetObject = await tweetCollection.findOne({ tweetId: tweetId });
         if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
 
-        const existingRetweet = await retweetsCollection.findOne({ retweetedBy: username, tweetId: tweetObject._id });
+        const userObject = await userCollection.findOne({ username: username });
+        if (!userObject) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+        const existingRetweet = await retweetsCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject._id });
         if (existingRetweet) {
             // If retweet exists, remove it (unretweet)
             await retweetsCollection.deleteOne({ _id: existingRetweet._id });
@@ -48,8 +52,8 @@ export async function POST(req: NextRequest) {
             // If retweet doesn't exist, create it
             const newRetweet = {
                 tweetId: tweetObject._id,
-                retweetedBy: username,
-                createdAt: new Date().toISOString(),
+                retweetedBy: userObject._id,
+                createdAt: new Date(),
             };
             await retweetsCollection.insertOne(newRetweet);
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.retweets": 1 } });

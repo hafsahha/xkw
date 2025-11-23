@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
     const database = await db;
     const likeCollection = database?.collection("likes");
     const tweetCollection = database?.collection("tweets");
+    const userCollection = database?.collection("users");
 
-    if (likeCollection && tweetCollection) {
+    if (likeCollection && tweetCollection && userCollection) {
         const body = await req.json();
         const { username, tweetId } = body;
         if (!username || !tweetId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
@@ -38,18 +39,21 @@ export async function POST(req: NextRequest) {
         const tweetObject = await tweetCollection.findOne({ tweetId: tweetId });
         if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
 
-        const existingLike = await likeCollection.findOne({ likedBy: username, tweetId: tweetObject._id });
+        const userObject = await userCollection.findOne({ username: username });
+        if (!userObject) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+        const existingLike = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweetObject._id });
         if (existingLike) {
             // If like exists, remove it (unlike)
             await likeCollection.deleteOne({ _id: existingLike._id });
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": -1 } });
             return NextResponse.json({ message: "Post unliked successfully" }, { status: 200 });
         } else {
-            // If like doesn't exist, create it
+            // If like doesn't exist, create itw
             const newLike = {
                 tweetId: tweetObject._id,
-                likedBy: username,
-                createdAt: new Date().toISOString(),
+                likedBy: userObject._id,
+                createdAt: new Date(),
             };
             await likeCollection.insertOne(newLike);
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": 1 } });

@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
 
     if (bookmarkCollection && tweetCollection) {
         const body = await req.json();
-        const { username, postId } = body;
-        if (!username || !postId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+        const { username, tweetId } = body;
+        if (!username || !tweetId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const tweetObject = await tweetCollection.findOne({ tweetId: postId });
+        const tweetObject = await tweetCollection.findOne({ tweetId: tweetId });
         if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
 
         const existingBookmark = await bookmarkCollection.findOne({ bookmarkedBy: username, tweetId: tweetObject._id });
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
             const newBookmark = {
                 tweetId: tweetObject._id,
                 bookmarkedBy: username,
-                createdAt: new Date().toISOString(),
+                createdAt: new Date(),
             };
             await bookmarkCollection.insertOne(newBookmark);
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.bookmarks": 1 } });
