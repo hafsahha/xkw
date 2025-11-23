@@ -25,7 +25,10 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !user) return;
+    if (!content.trim() || !user) {
+      alert("User data or content is missing.");
+      return;
+    }
 
     setIsPosting(true);
     try {
@@ -35,23 +38,25 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
         body: JSON.stringify({
           username: user.username,
           content,
-          media: [],
+          media: images ? Array.from(images).map((file) => file.name) : [],
           type: "Original",
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Tweet posted:", data);
+        console.log("Tweet posted successfully:", data);
         setContent("");
         setImages(null);
         onClose();
       } else {
-        alert("Failed to post tweet");
+        const errorData = await response.json();
+        console.error("Failed to post tweet:", errorData);
+        alert(`Failed to post tweet: ${errorData.message || "Unknown error"}`);
       }
     } catch (error) {
       console.error("Error posting tweet:", error);
-      alert("Error: " + (error instanceof Error ? error.message : "Unknown error"));
+      alert("An error occurred while posting the tweet. Please try again.");
     } finally {
       setIsPosting(false);
     }
