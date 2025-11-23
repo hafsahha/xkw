@@ -153,9 +153,13 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 Edit profile
               </button>
             ) : (
-              <button 
+              <button
                 onClick={handleFollowToggle}
-                className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isFollowing
+                    ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    : "bg-pink-500 text-white hover:bg-pink-600"
+                }`}
               >
                 {isFollowing ? "Unfollow" : "Follow"}
               </button>
@@ -181,13 +185,21 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
             {/* Stats */}
             <div className="flex space-x-6">
-              <Link href={`/profile/${username}/following`} className="flex space-x-1 hover:underline">
-                <span className="font-semibold">{userData.stats.following}</span>
-                <span className="text-gray-500">Following</span>
-              </Link>
-              <Link href={`/profile/${username}/followers`} className="flex space-x-1 hover:underline">
+              <Link
+                href={`/profile/${username}/followers`}
+                onClick={() => setActiveTab("Followers")}
+                className="flex space-x-1 hover:underline"
+              >
                 <span className="font-semibold">{userData.stats.followers}</span>
                 <span className="text-gray-500">Followers</span>
+              </Link>
+              <Link
+                href={`/profile/${username}/followers`}
+                onClick={() => setActiveTab("Following")}
+                className="flex space-x-1 hover:underline"
+              >
+                <span className="font-semibold">{userData.stats.following}</span>
+                <span className="text-gray-500">Following</span>
               </Link>
             </div>
           </div>
