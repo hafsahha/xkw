@@ -126,7 +126,7 @@ export default function PhotoModal({ params }: { params: Promise<{ id: string, i
       await fetch('/api/retweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loggedUser, postId: id })
+        body: JSON.stringify({ username: loggedUser, tweetId: id })
       });
     } finally { setIsLoadingRetweet(false) }
   };
