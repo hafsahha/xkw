@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Post, User } from "@/lib/types";
 import TweetCard from "@/components/tweet/TweetCard";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -12,6 +13,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [isMyself, setIsMyself] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Posts");
+  const [isFollowing, setIsFollowing] = useState(false);
   const { username } = React.use(params);
 
   const fetchPosts = async () => {
@@ -41,8 +43,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       const data = await response.json();
       setUserData(data as User);
     }
-    
-    const storedUser = localStorage.getItem('loggedUser')
+
+    const storedUser = localStorage.getItem("loggedUser");
     if (!storedUser) return;
     const t = setTimeout(() => {
       setIsMyself(storedUser === username);
@@ -52,6 +54,47 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     fetchUserData();
     return () => clearTimeout(t);
   }, [username]);
+
+  useEffect(() => {
+    const checkFollowingStatus = () => {
+      const loggedInUsername = currentUser;
+      if (!loggedInUsername || !userData) return false;
+      return userData.followers.includes(loggedInUsername);
+    };
+
+    setIsFollowing(checkFollowingStatus());
+  }, [userData, currentUser]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+      return alert("You must be logged in to follow users.");
+    }
+
+    try {
+      const response = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          follower: currentUser,
+          followee: userData?.username,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setIsFollowing((prev) => !prev);
+        alert(result.message);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to update follow status");
+      }
+    } catch (error) {
+      console.error("Error toggling follow status:", error);
+      alert("An error occurred. Please try again.");
+    }
+  };
 
   if (!userData) {
     return (
@@ -110,11 +153,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 Edit profile
               </button>
             ) : (
-              <button 
-                onClick={() => alert('Follow/unfollow functionality not implemented yet.')}
-                className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+              <button
+                onClick={handleFollowToggle}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isFollowing
+                    ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    : "bg-pink-500 text-white hover:bg-pink-600"
+                }`}
               >
-                Follow
+                {isFollowing ? "Unfollow" : "Follow"}
               </button>
             )}
           </div>
@@ -138,14 +185,22 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
             {/* Stats */}
             <div className="flex space-x-6">
-              <div className="flex space-x-1">
-                <span className="font-semibold">{userData.stats.following}</span>
-                <span className="text-gray-500">Following</span>
-              </div>
-              <div className="flex space-x-1">
+              <Link
+                href={`/profile/${username}/followers`}
+                onClick={() => setActiveTab("Followers")}
+                className="flex space-x-1 hover:underline"
+              >
                 <span className="font-semibold">{userData.stats.followers}</span>
                 <span className="text-gray-500">Followers</span>
-              </div>
+              </Link>
+              <Link
+                href={`/profile/${username}/followers`}
+                onClick={() => setActiveTab("Following")}
+                className="flex space-x-1 hover:underline"
+              >
+                <span className="font-semibold">{userData.stats.following}</span>
+                <span className="text-gray-500">Following</span>
+              </Link>
             </div>
           </div>
         </div>

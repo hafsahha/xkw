@@ -1,36 +1,234 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# XKW - Imitasi dari X/Twitter
 
-## Getting Started
+XKW adalah aplikasi web yang meniru fungsi utama dari X (sebelumnya dikenal sebagai Twitter). Dibangun menggunakan Next.js, aplikasi ini menyediakan platform bagi pengguna untuk memposting tweet, mengikuti pengguna lain, dan berinteraksi dengan konten melalui like, retweet, dan balasan.
 
-First, run the development server:
+## Fitur
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Autentikasi Pengguna**: Daftar dan masuk ke akun Anda.
+- **Tweeting**: Buat, edit, dan hapus tweet.
+- **Retweet dan Like**: Berinteraksi dengan tweet melalui like dan retweet.
+- **Sistem Mengikuti**: Ikuti pengguna lain dan lihat tweet mereka di feed Anda.
+- **Tab untuk Feed**: Beralih antara tab "Untuk Anda" dan "Mengikuti" untuk menyesuaikan feed Anda.
+- **Desain Responsif**: Dioptimalkan untuk perangkat desktop dan seluler.
+
+## Teknologi yang Digunakan
+
+- **Next.js**: Framework untuk membangun aplikasi.
+- **MongoDB**: Database untuk menyimpan data pengguna dan tweet.
+- **TypeScript**: Memastikan keamanan tipe di seluruh kode.
+- **Tailwind CSS**: Untuk styling aplikasi.
+
+## Struktur Database
+
+Aplikasi ini menggunakan MongoDB sebagai database utama. Berikut adalah struktur koleksi utama:
+
+1. **users**:
+   - Menyimpan informasi pengguna seperti `username`, `email`, `password`, `bio`, dan statistik (jumlah pengikut, jumlah yang diikuti, jumlah tweet).
+   - Contoh dokumen:
+     ```json
+     {
+       "userId": "12345",
+       "username": "johndoe",
+       "email": "johndoe@example.com",
+       "password": "hashed_password",
+       "name": "John Doe",
+       "bio": "Pengembang web",
+       "media": {
+         "profileImage": "profile.jpg",
+         "bannerImage": "banner.jpg"
+       },
+       "stats": {
+         "followers": 100,
+         "following": 50,
+         "tweetCount": 200
+       },
+       "createdAt": "2025-01-01T00:00:00Z"
+     }
+     ```
+
+2. **tweets**:
+   - Menyimpan informasi tentang tweet, termasuk konten, media, jenis tweet (original, reply, retweet, quote), dan statistik (jumlah balasan, retweet, like).
+   - Contoh dokumen:
+     ```json
+     {
+       "tweetId": "abc123",
+       "author": {
+         "userId": "12345",
+         "username": "johndoe",
+         "name": "John Doe",
+         "avatar": "profile.jpg"
+       },
+       "content": "Ini adalah tweet pertama saya!",
+       "media": [],
+       "parentTweetId": null,
+       "type": "Original",
+       "stats": {
+         "replies": 10,
+         "retweets": 5,
+         "likes": 20
+       },
+       "createdAt": "2025-01-01T12:00:00Z"
+     }
+     ```
+
+3. **follows**, **likes**, **retweets**, **bookmarks**, **notifications**, **hashtags**, **timelines**, dan **drafts**:
+   - Koleksi tambahan untuk menyimpan data interaksi pengguna dengan tweet (like, retweet, bookmark, notifikasi, dll.).
+
+### Diagram ER
+
+Berikut adalah diagram ER yang menggambarkan hubungan antar koleksi dalam database:
+
+```mermaid
+erDiagram
+
+    USERS {
+        ObjectId _id
+        string username
+        string email
+        string password
+        object media
+        string name
+        string bio
+        object stats
+        date createdAt
+    }
+
+    TWEETS {
+        ObjectId _id
+        object author
+        string content
+        array media
+        ObjectId parentTweetId
+        string type
+        object stats
+        date createdAt
+    }
+
+    FOLLOWS {
+        ObjectId _id
+        ObjectId followerId
+        ObjectId followingId
+        date createdAt
+    }
+
+    LIKES {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    BOOKMARKS {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    RETWEETS {
+        ObjectId _id
+        ObjectId userId
+        ObjectId tweetId
+        date createdAt
+    }
+
+    NOTIFICATIONS {
+        ObjectId _id
+        ObjectId receiverId
+        object actor
+        string type
+        ObjectId tweetId
+        boolean isRead
+        date createdAt
+    }
+
+    HASHTAGS {
+        string _id
+        number count
+        date lastUsed
+    }
+
+    TIMELINES {
+        ObjectId _id
+        array tweets
+    }
+
+    DRAFTS {
+        ObjectId _id
+        ObjectId userId
+        string content
+        array media
+        date updatedAt
+    }
+    USERS ||--o{ TWEETS : "writes"
+    USERS ||--o{ FOLLOWS : "follows"
+    USERS ||--o{ LIKES : "likes"
+    USERS ||--o{ BOOKMARKS : "bookmarks"
+    USERS ||--o{ RETWEETS : "retweets"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+
+    TWEETS ||--o{ LIKES : "is liked by"
+    TWEETS ||--o{ RETWEETS : "is retweeted by"
+    TWEETS ||--o{ BOOKMARKS : "is bookmarked by"
+    TWEETS ||--o{ NOTIFICATIONS : "triggers"
+    TWEETS ||--o{ TIMELINES : "appears in"
+
+    TWEETS ||--o| TWEETS : "replies to / quotes"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Memulai
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Untuk menjalankan proyek ini secara lokal, ikuti langkah-langkah berikut:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Clone repositori:
+   ```bash
+   git clone https://github.com/your-username/xkw.git
+   ```
 
-## Learn More
+2. Masuk ke direktori proyek:
+   ```bash
+   cd xkw
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. Instal dependensi:
+   ```bash
+   pnpm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Atur variabel lingkungan:
+   Buat file `.env.local` di direktori root dan tambahkan variabel lingkungan yang diperlukan (misalnya, string koneksi database).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Jalankan server pengembangan:
+   ```bash
+   pnpm dev
+   ```
 
-## Deploy on Vercel
+6. Buka [http://localhost:3000](http://localhost:3000) di browser Anda untuk melihat aplikasi.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Pelajari Lebih Lanjut
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Untuk mempelajari lebih lanjut tentang teknologi yang digunakan dalam proyek ini, lihat sumber daya berikut:
+
+- [Dokumentasi Next.js](https://nextjs.org/docs) - Pelajari fitur dan API Next.js.
+- [Dokumentasi MongoDB](https://www.mongodb.com/docs/) - Pelajari tentang MongoDB untuk manajemen database.
+- [Dokumentasi Tailwind CSS](https://tailwindcss.com/docs) - Pelajari tentang framework CSS berbasis utilitas.
+
+## Berkontribusi
+
+Kontribusi sangat diterima! Jika Anda ingin berkontribusi pada XKW, silakan fork repositori ini dan kirimkan pull request.
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah Lisensi MIT. Lihat file LICENSE untuk detail lebih lanjut.
+
+---
+
+XKW adalah proyek yang terinspirasi oleh X/Twitter, dibangun untuk tujuan edukasi dan untuk mengeksplorasi teknologi pengembangan web modern. Proyek ini dibuat untuk memenuhi tugas mata kuliah Basis Data Non-Relasional.
+
+Proyek ini dikembangkan oleh Kelompok 3:
+
+1. Datuk Daneswara
+2. Hafsah Hamidah
+3. Natasha Adinda
+4. Zakiyah Hasanah
+5. Shizuka Mauli Putri

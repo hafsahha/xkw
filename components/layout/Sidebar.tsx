@@ -133,6 +133,13 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
       <NewPostModal 
         isOpen={isNewPostOpen} 
         onClose={() => setIsNewPostOpen(false)} 
+        user={user} // Pass user data to the modal
+        onTweetPosted={() => {
+          setIsNewPostOpen(false); // Close modal after posting
+          if (typeof window !== "undefined") {
+            window.location.reload(); // Refresh feed to show new tweet
+          }
+        }}
       />
     </aside>
   );
