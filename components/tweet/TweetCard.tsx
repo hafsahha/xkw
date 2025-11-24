@@ -1,12 +1,12 @@
 "use client";
-import { Bookmark, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "lucide-react";
+import { Bookmark, Copy, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Post } from "@/lib/types";
 import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function TweetCard({ tweet, sidebarMode, onRetweetSuccess }: { tweet: Post, sidebarMode?: boolean, onRetweetSuccess?: () => void }) {
+export default function TweetCard({ tweet, mediaOnly, sidebarMode, onRetweetSuccess }: { tweet: Post, mediaOnly?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
@@ -104,6 +104,20 @@ export default function TweetCard({ tweet, sidebarMode, onRetweetSuccess }: { tw
     const minutes = Math.floor(diff / (1000 * 60));
     return `${minutes}m`;
   };
+
+  if (mediaOnly) {
+    return (
+      <Link
+        href={`/tweet/${tweet.tweetId}/image/1`}
+        className='relative block group h-full w-full rounded overflow-hidden'
+      >
+        <Image src={`/img/${tweet.media[0]}`} alt={`Media 1`} className="object-cover w-full h-full" fill />
+        {tweet.media.length > 1 && (
+          <Copy className="absolute bottom-2 right-2 h-8 w-8 text-white bg-black/50 rounded-lg p-1" />
+        )}
+      </Link>
+    )
+  }
 
   return (
     <article 

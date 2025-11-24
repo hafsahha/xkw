@@ -213,7 +213,7 @@ export default function PhotoModal({ params }: { params: Promise<{ id: string, i
               onClick={handleLike}
               disabled={isLoadingLike}
               className={`flex items-center space-x-2 transition-colors group ${
-                isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
               } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="p-2 rounded-full group-hover:bg-red-500/20 transition-colors">
