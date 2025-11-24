@@ -58,6 +58,13 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     async function fetchTweet() {
       const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
       const data = await response.json();
+      
+      // Handle 404 or tweet deleted
+      if (!data || !data.author || response.status === 404) {
+        window.location.href = '/home';
+        return;
+      }
+      
       setIsMyself(data.author.username === loggedUser);
       setIsBookmarked(data.isBookmarked);
       setIsRetweeted(data.isRetweeted);
@@ -200,7 +207,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                     >
                     <Ellipsis className="h-4 w-4" />
                   </button>
-                  {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
+                  {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={() => window.location.href = '/home'} />}
                 </div>
               </div>
             </div>

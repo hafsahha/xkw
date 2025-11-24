@@ -195,4 +195,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Failed to create tweet" }, { status: 500 });
 }
 
-// testt
+// Delete a tweet
+export async function DELETE(req: NextRequest) {
+    const database = await db;
+    const tweetCollection = database?.collection("tweets");
+    const userCollection = database?.collection("users");
+    const likeCollection = database?.collection("likes");
+    const retweetCollection = database?.collection("retweets");
+    const bookmarkCollection = database?.collection("bookmarks");
+
+    if (tweetCollection && userCollection && likeCollection && retweetCollection && bookmarkCollection) {
+        const body = await req.json();
+        const { tweetId, username } = body;
+        
+        if (!tweetId || !username) {
+            return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+        }
+
+        // Find the tweet
+        const tweet = await tweetCollection.findOne({ tweetId: tweetId });
+        if (!tweet) {
+            return NextResponse.json({ message: "Tweet not found" }, { status: 404 });
+        }
+
+        // Check if the current user is the author
+        if (tweet.author.username !== username) {
+            return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+        }
+
+        // Delete the tweet
+        await tweetCollection.deleteOne({ tweetId: tweetId });
+
+        // Delete all related data (likes, retweets, bookmarks)
+        await likeCollection.deleteMany({ tweetId: tweet._id });
+        await retweetCollection.deleteMany({ tweetId: tweet._id });
+        await bookmarkCollection.deleteMany({ tweetId: tweet._id });
+
+        // Delete all replies to this tweet
+        const replies = await tweetCollection.find({ parentTweetId: tweet._id }).toArray();
+        for (const reply of replies) {
+            await tweetCollection.deleteOne({ _id: reply._id });
+            await likeCollection.deleteMany({ tweetId: reply._id });
+            await retweetCollection.deleteMany({ tweetId: reply._id });
+            await bookmarkCollection.deleteMany({ tweetId: reply._id });
+        }
+
+        // Update user stats
+        await userCollection.updateOne({ username: username }, { $inc: { "stats.tweetCount": -1 } });
+
+        // If this is a reply, decrement parent's reply count
+        if (tweet.parentTweetId) {
+            const parentTweet = await tweetCollection.findOne({ _id: tweet.parentTweetId });
+            if (parentTweet) {
+                await tweetCollection.updateOne({ _id: tweet.parentTweetId }, { $inc: { "stats.replies": -1 } });
+            }
+        }
+
+        return NextResponse.json({ message: "Tweet deleted successfully" }, { status: 200 });
+    }
+    return NextResponse.json({ message: "Failed to delete tweet" }, { status: 500 });
+}

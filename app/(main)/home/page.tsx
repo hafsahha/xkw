@@ -89,7 +89,8 @@ export default function Home() {
             <TweetCard
               key={`${tweet.tweetId}-${index}`}
               tweet={tweet}
-              onRetweetSuccess={() => fetchFeed(activeTab)} // Pass the correct function signature
+              onRetweetSuccess={() => fetchFeed(activeTab)}
+              onDeleteSuccess={() => fetchFeed(activeTab)}
             />
           ))}
         </div>
