@@ -5,6 +5,7 @@ import db from "@/lib/db";
 // Get tweet retweeters (users who retweeted a specific tweet, excluding quotes)
 export async function GET(req: NextRequest) {
     const database = await db;
+    const tweetCollection = database?.collection("tweets");
     const retweetCollection = database?.collection("retweets");
     const userCollection = database?.collection("users");
 
@@ -13,9 +14,11 @@ export async function GET(req: NextRequest) {
         const id = searchParams.get("id");
 
         if (id) {
-            const tweetRetweets = await retweetCollection.find({ tweetId: new ObjectId(id) }).toArray();
+            const tweetObject = await tweetCollection.findOne({ tweetId: id });
+            if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
+            const tweetRetweets = await retweetCollection.find({ tweetId: tweetObject._id }).toArray();
             const detailedRetweets = await Promise.all(tweetRetweets.map(async (retweet) => {
-                return await userCollection.findOne({ username: retweet.retweetedBy });
+                return await userCollection.findOne({ _id: retweet.retweetedBy });
             }));
             return NextResponse.json(detailedRetweets);
         }

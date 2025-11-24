@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import db from "@/lib/db";
 
 // Get tweet likers (users who liked a specific tweet)
 export async function GET(req: NextRequest) {
     const database = await db;
+    const tweetCollection = database?.collection("tweets");
     const likeCollection = database?.collection("likes");
     const userCollection = database?.collection("users");
 
@@ -13,9 +13,11 @@ export async function GET(req: NextRequest) {
         const id = searchParams.get("id");
 
         if (id) {
-            const tweetLikes = await likeCollection.find({ tweetId: new ObjectId(id) }).toArray();
+            const tweetObject = await tweetCollection?.findOne({ tweetId: id });
+            if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
+            const tweetLikes = await likeCollection.find({ tweetId: tweetObject._id }).toArray();
             const detailedLikes = await Promise.all(tweetLikes.map(async (like) => {
-                return await userCollection.findOne({ username: like.likedBy });
+                return await userCollection.findOne({ _id: like.likedBy });
             }));
             return NextResponse.json(detailedLikes);
         }
