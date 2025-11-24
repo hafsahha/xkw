@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     if (tweetCollection && userCollection && likeCollection && bookmarkCollection) {
         const searchParams = req.nextUrl.searchParams;
         const findRoot = searchParams.get("findRoot") === "true";
+        const quote = searchParams.get("quote") === "true";
         const currentUser = searchParams.get("currentUser");
         const username = searchParams.get("username");
         const tweetstats = searchParams.get("tweetstats");
@@ -33,20 +34,25 @@ export async function GET(req: NextRequest) {
         // Get a single tweet data by tweet ID
         if (id) {
             const tweet = await tweetCollection.findOne({ tweetId: id });
-            if (findRoot) {
-                const parents = [];
-                let currentTweet = tweet;
-                while (currentTweet && currentTweet.parentTweetId) {
-                    const parentTweet = await tweetCollection.findOne({ _id: currentTweet.parentTweetId });
-                    if (parentTweet) {
-                        parents.unshift(parentTweet);
-                        currentTweet = parentTweet;
-                    } else break;
-                }
-                return NextResponse.json(parents.length > 0 ? parents : null);
-            }
-            
             if (tweet) {
+                if (quote) {
+                    const quotedTweet = await tweetCollection.findOne({ _id: tweet.parentTweetId });
+                    return NextResponse.json(quotedTweet);
+                }
+                
+                if (findRoot) {
+                    const parents = [];
+                    let currentTweet = tweet;
+                    while (currentTweet && currentTweet.parentTweetId) {
+                        const parentTweet = await tweetCollection.findOne({ _id: currentTweet.parentTweetId });
+                        if (parentTweet) {
+                            parents.unshift(parentTweet);
+                            currentTweet = parentTweet;
+                        } else break;
+                    }
+                    return NextResponse.json(parents.length > 0 ? parents : null);
+                }
+
                 const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null;
                 const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;
                 const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweet._id }) !== null;
