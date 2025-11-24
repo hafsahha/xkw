@@ -15,7 +15,14 @@ export async function GET(req: NextRequest) {
         const searchParams = req.nextUrl.searchParams;
         const currentUser = searchParams.get("currentUser");
         const username = searchParams.get("username");
+        const tweetstats = searchParams.get("tweetstats");
         const id = searchParams.get("id");
+
+        if (tweetstats) {
+            const tweet = await tweetCollection.findOne({ tweetId: tweetstats });
+            if (tweet) return NextResponse.json(tweet.stats)
+            return NextResponse.json({ message: "Tweet not found" }, { status: 404 });
+        }
 
         if (!currentUser) return NextResponse.json({ message: "Current user is required" }, { status: 400 });
         const userObject = await userCollection.findOne({ username: currentUser });

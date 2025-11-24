@@ -9,7 +9,10 @@ import Link from "next/link";
 
 export default function TweetPage({ params }: { params: Promise<{ id: string }> }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
+  const statsRef = useRef<HTMLDivElement | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
+  const [isStatOpen, setIsStatOpen] = useState(false);
+  const [stat, setStat] = useState<'like' | 'retweets' | 'quotes'>('like');
   const [loggedUser, setLoggedUser] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean | null>(null);
@@ -22,6 +25,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   const [isLoadingLike, setIsLoadingLike] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isReplying, setIsReplying] = useState(false);
+  const [isMyself, setIsMyself] = useState(false);
   const { id } = React.use(params);
   
   useEffect(() => {
@@ -33,8 +37,9 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
-      if (!optionsRef.current) return;
+      if (!optionsRef.current || !statsRef.current) return;
       if (target && !optionsRef.current.contains(target)) setIsOptionOpen(false);
+      if (target && !statsRef.current.contains(target)) setIsStatOpen(false)
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
@@ -53,6 +58,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     async function fetchTweet() {
       const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
       const data = await response.json();
+      setIsMyself(data.author.username === loggedUser);
       setIsBookmarked(data.isBookmarked);
       setIsRetweeted(data.isRetweeted);
       setIsLiked(data.isLiked);
@@ -223,25 +229,26 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
             </div>
               
             {/* Interaction Stats */}
-            <div className="flex items-center border-t border-b border-gray-200 text-gray-500 text-sm">
+            <div ref={statsRef} className="flex items-center border-t border-b border-gray-200 text-gray-500 text-sm">
               <button
-                // onClick={openRetweetsModal}
+                onClick={() => { setIsStatOpen(true); setStat('retweets'); }}
                 className="px-3 py-2 hover:bg-gray-300"
               >
                 <span className="font-semibold text-gray-900">{tweetStats!.retweets}</span> Retweets
               </button>
               <button
-                // onClick={openQuotesModal}
+                onClick={() => { setIsStatOpen(true); setStat('quotes'); }}
                 className="px-3 py-2 hover:bg-gray-300"
               >
                 <span className="font-semibold text-gray-900">{tweetStats!.quotes}</span> Quote Tweets
               </button>
               <button
-                // onClick={openLikesModal}
+                {...(isMyself ? { onClick: () => { setIsStatOpen(true); setStat('like'); } } : {})}
                 className="px-3 py-2 hover:bg-gray-300"
                 >
               <span className="font-semibold text-gray-900">{tweetStats!.likes}</span> Likes
               </button>
+              {isStatOpen && <FloatingModal type="statsList" tweetId={tweet.tweetId} stat={stat} onClose={() => setIsStatOpen(false)} />}
             </div>
 
             {/* Action Buttons */}
