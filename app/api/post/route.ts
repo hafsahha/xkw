@@ -72,9 +72,12 @@ export async function GET(req: NextRequest) {
 
         // Get all tweets by username
         if (username) {
+            const targetObject = await userCollection.findOne({ username });
+            if (!targetObject) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
             // Filter liked tweets only
             if (searchParams.get("likedOnly") === "true") {
-                const likedTweets = await likeCollection.find({ likedBy: username }).sort({ createdAt: -1 }).toArray();
+                const likedTweets = await likeCollection.find({ likedBy: targetObject._id }).sort({ createdAt: -1 }).toArray();
                 const detailedLikedTweets = await Promise.all(likedTweets.map(async (like) => {
                     const tweetObject = await tweetCollection.findOne({ _id: like.tweetId });
                     const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
@@ -86,7 +89,7 @@ export async function GET(req: NextRequest) {
 
             // Filter bookmarked tweets only
             if (searchParams.get("bookmarkedOnly") === "true") {
-                const bookmarkedTweets = await bookmarkCollection.find({ bookmarkedBy: username }).sort({ createdAt: -1 }).toArray();
+                const bookmarkedTweets = await bookmarkCollection.find({ bookmarkedBy: targetObject._id }).sort({ createdAt: -1 }).toArray();
                 const detailedBookmarkedTweets = await Promise.all(bookmarkedTweets.map(async (bookmark) => {
                     const tweetObject = await tweetCollection.findOne({ _id: bookmark.tweetId });
                     const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
@@ -116,7 +119,7 @@ export async function GET(req: NextRequest) {
             
             // Get user retweets
             if (!mediaOnly) {
-                const userRetweets = await retweetCollection.find({ retweetedBy: username }).toArray();
+                const userRetweets = await retweetCollection.find({ retweetedBy: targetObject._id }).toArray();
                 const retweetedPosts = await Promise.all(userRetweets.map(async (retweet) => {
                     const originalPost = await tweetCollection.findOne({ _id: retweet.tweetId });
                     if (!originalPost) return null;

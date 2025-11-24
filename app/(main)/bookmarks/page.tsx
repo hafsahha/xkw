@@ -28,7 +28,7 @@ export default function BookmarksPage() {
   useEffect(() => {
     async function fetchBookmarks(username: string) {
       try {
-        const params = new URLSearchParams({ username, bookmarkedOnly: "true" });
+        const params = new URLSearchParams({ username, currentUser: username, bookmarkedOnly: "true" });
         const response = await fetch(`/api/post?${params.toString()}`);
         const data = await response.json();
         if (response.ok) setBookmarkedTweets(data);
