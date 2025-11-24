@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
         const { username, tweetId } = body;
         if (!username || !tweetId) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const tweetObject = await tweetCollection.findOne({ tweetId: tweetId });
+        const tweetObject = await tweetCollection.findOne({ tweetId });
         if (!tweetObject) return NextResponse.json({ message: "Post not found" }, { status: 404 });
 
-        const userObject = await userCollection.findOne({ username: username });
+        const userObject = await userCollection.findOne({ username });
         if (!userObject) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
         const existingLike = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweetObject._id });
