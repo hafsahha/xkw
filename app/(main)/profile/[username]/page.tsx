@@ -224,13 +224,13 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="grid grid-cols-3 p-1 min-h-screen content-start gap-1">
             {userPosts!.map((tweet, _) => (
               <div key={_} className="relative aspect-square overflow-hidden">
-                <TweetCard tweet={tweet} onRetweetSuccess={fetchPosts} mediaOnly />
+                <TweetCard tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} mediaOnly />
               </div>
             ))}
           </div>
         ) : (
           <div className="min-h-screen divide-y divide-gray-200">
-            {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchPosts} />)}
+            {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
           </div>
         )
       )}

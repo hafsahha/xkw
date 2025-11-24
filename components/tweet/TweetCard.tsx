@@ -7,9 +7,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function TweetCard({
-  tweet, mediaOnly, isRoot, isMid, sidebarMode, onRetweetSuccess
+  tweet, mediaOnly, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
 }: {
-  tweet: Post, mediaOnly?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void
+  tweet: Post, mediaOnly?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
 }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -189,7 +189,7 @@ export default function TweetCard({
                 >
                   <Ellipsis className="h-4 w-4" />
                 </button>
-                {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
+                {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={onDeleteSuccess} />}
               </div>
             </div>
 
