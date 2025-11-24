@@ -230,7 +230,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </div>
         ) : (
           <div className="min-h-screen divide-y divide-gray-200">
-            {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
+            {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} findRoot onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
           </div>
         )
       )}

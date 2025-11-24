@@ -7,9 +7,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function TweetCard({
-  tweet, mediaOnly, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
+  tweet, mediaOnly, findRoot, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
 }: {
-  tweet: Post, mediaOnly?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
+  tweet: Post, mediaOnly?: boolean, findRoot?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
 }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -47,8 +47,8 @@ export default function TweetCard({
       setTweetParents(data as Post[]);
       console.log('Fetched tweet parents:', data);
     }
-    if (currentUser && !isRoot && !isMid && tweet.type === "Reply") findRootTweet();
-  }, [tweet, currentUser, isRoot, isMid]);
+    if (currentUser && findRoot && tweet.type === "Reply") findRootTweet();
+  }, [tweet, currentUser, findRoot]);
 
   const handleLike = async () => {
     if (isLoadingLike) return; // Prevent duplicate clicks
@@ -137,7 +137,7 @@ export default function TweetCard({
 
   return (
     <>
-      {tweetParents && tweetParents.length > 0 && tweetParents.map((parent, idx) => ( <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} /> ))}
+      {tweetParents && tweetParents.map((parent, idx) => ( <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} /> ))}
       <article 
       className={`p-4 ${tweet.type === 'Retweet' ? 'pt-1' : ''} hover:bg-gray-50/50 transition-colors cursor-pointer
         ${(isRoot || isMid) ? 'border-0 pb-0' : 'border-b border-gray-200'} ${(tweetParents || isMid) ? 'pt-0' : ''}

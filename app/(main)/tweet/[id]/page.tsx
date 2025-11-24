@@ -18,6 +18,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   const [isBookmarked, setIsBookmarked] = useState<boolean | null>(null);
   const [isRetweeted, setIsRetweeted] = useState<boolean | null>(null);
   const [isLiked, setIsLiked] = useState<boolean | null>(null);
+  const [tweetParents, setTweetParents] = useState<Post[] | null>(null);
   const [tweetStats, setTweetStats] = useState<PostStats | null>(null)
   const [tweet, setTweet] = useState<Post | null>(null);
   const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
@@ -74,6 +75,17 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     }
     if (loggedUser) fetchTweet();
   }, [id, loggedUser]);
+
+  useEffect(() => {
+      async function findRootTweet() {
+        const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet!.tweetId, findRoot: 'true'});
+        const response = await fetch(`/api/post?${params.toString()}`);
+        const data = await response.json();
+        setTweetParents(data as Post[]);
+        console.log('Fetched tweet parents:', data);
+      }
+      if (loggedUser && tweet && tweet.type === "Reply") findRootTweet();
+    }, [tweet, loggedUser]);
 
   const handleReply = async () => {
     if (!replyText.trim() || !loggedUser || !tweet) return;
@@ -176,7 +188,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
           <button 
             onClick={() => window.history.back()}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black"
-          >
+            >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold text-black">Post</h1>
@@ -185,131 +197,139 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Main Tweet */}
       {tweet && tweetStats ? (
-        <article className="p-4 pb-2 border-b border-gray-200">
-          <div className="flex flex-col">
-            <div className="flex gap-3 mb-2">
-              <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
-                <Image src={`/img/${tweet.author.avatar}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
-              </Link>
-              <div className="flex w-full justify-between">
-                <div className="flex flex-col space-x-1 mb-2">
-                  <Link href={`/profile/${tweet.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
-                    {tweet.author.name}
-                  </Link>
-                  <Link href={`/profile/${tweet.author.username}`} className="w-fit text-gray-500">
-                    @{tweet.author.username}
+        <>
+          {tweetParents && tweetParents.map((parent, idx) => (
+            <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} />
+          ))}
+          <article className={` ${tweetParents ? 'pt-0' : ''} p-4 pb-2 border-b border-gray-200`}>
+            <div className="flex flex-col">
+              <div className="flex gap-3 mb-2">
+                <div className="flex flex-col items-center">
+                  {tweetParents && <div className="flex-1 max-h-3 w-px bg-gray-300 mb-1" />}
+                  <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
+                    <Image src={`/img/${tweet.author.avatar}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
                   </Link>
                 </div>
-                <div ref={optionsRef} className="relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
-                    className="relative h-fit text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                    >
-                    <Ellipsis className="h-4 w-4" />
-                  </button>
-                  {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={() => window.location.href = '/home'} />}
+                <div className={`flex w-full justify-between ${tweetParents ? 'pt-4' : ''}`}>
+                  <div className="flex flex-col space-x-1 mb-2">
+                    <Link href={`/profile/${tweet.author.username}`} className="w-fit font-semibold text-gray-900 hover:underline cursor-pointer">
+                      {tweet.author.name}
+                    </Link>
+                    <Link href={`/profile/${tweet.author.username}`} className="w-fit text-gray-500">
+                      @{tweet.author.username}
+                    </Link>
+                  </div>
+                  <div ref={optionsRef} className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
+                      className="relative h-fit text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                      >
+                      <Ellipsis className="h-4 w-4" />
+                    </button>
+                    {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={() => window.location.href = '/home'} />}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="mb-4">
-              <p className="text-gray-900 text-xl leading-relaxed">{tweet.content}</p>
-              {tweet.media.length > 0 && (
-                <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
-                  {tweet.media.map((mediaUrl, idx) => (
-                    <Link
-                      key={idx} onClick={(e) => e.stopPropagation()}
-                      href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
-                      className={`h-full w-full ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
-                    >
-                      <Image
-                        src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
-                        className={`${tweet.media.length === 1 ? 'rounded-xl' : 'w-full h-full'} object-cover`}
-                        width={1000} height={1000}
-                      />
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="text-gray-500 mb-2">
-              {new Date(tweet.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </div>
-              
-            {/* Interaction Stats */}
-            <div ref={statsRef} className="flex items-center border-t border-b border-gray-200 text-gray-500 text-sm">
-              <button
-                onClick={() => { setIsStatOpen(true); setStat('retweets'); }}
-                className="px-3 py-2 hover:bg-gray-300"
-              >
-                <span className="font-semibold text-gray-900">{tweetStats!.retweets}</span> Retweets
-              </button>
-              <button
-                onClick={() => { setIsStatOpen(true); setStat('quotes'); }}
-                className="px-3 py-2 hover:bg-gray-300"
-              >
-                <span className="font-semibold text-gray-900">{tweetStats!.quotes}</span> Quote Tweets
-              </button>
-              <button
-                {...(isMyself ? { onClick: () => { setIsStatOpen(true); setStat('like'); } } : {})}
-                className="px-3 py-2 hover:bg-gray-300"
+              <div className="mb-4">
+                <p className="text-gray-900 text-xl leading-relaxed">{tweet.content}</p>
+                {tweet.media.length > 0 && (
+                  <div className={`mt-2 ${tweet.media.length > 1 ? 'grid h-80 grid-cols-2 auto-rows-fr gap-1 rounded-xl' : 'flex w-full'} overflow-hidden items-center`}>
+                    {tweet.media.map((mediaUrl, idx) => (
+                      <Link
+                        key={idx} onClick={(e) => e.stopPropagation()}
+                        href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
+                        className={`h-full w-full ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                      >
+                        <Image
+                          src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                          className={`${tweet.media.length === 1 ? 'rounded-xl' : 'w-full h-full'} object-cover`}
+                          width={1000} height={1000}
+                        />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="text-gray-500 mb-2">
+                {new Date(tweet.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(tweet.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
+                
+              {/* Interaction Stats */}
+              <div ref={statsRef} className="flex items-center border-t border-b border-gray-200 text-gray-500 text-sm">
+                <button
+                  onClick={() => { setIsStatOpen(true); setStat('retweets'); }}
+                  className="px-3 py-2 hover:bg-gray-300"
                 >
-              <span className="font-semibold text-gray-900">{tweetStats!.likes}</span> Likes
-              </button>
-              {isStatOpen && <FloatingModal type="statsList" tweetId={tweet.tweetId} stat={stat} onClose={() => setIsStatOpen(false)} />}
+                  <span className="font-semibold text-gray-900">{tweetStats!.retweets}</span> Retweets
+                </button>
+                <button
+                  onClick={() => { setIsStatOpen(true); setStat('quotes'); }}
+                  className="px-3 py-2 hover:bg-gray-300"
+                >
+                  <span className="font-semibold text-gray-900">{tweetStats!.quotes}</span> Quote Tweets
+                </button>
+                <button
+                  {...(isMyself ? { onClick: () => { setIsStatOpen(true); setStat('like'); } } : {})}
+                  className="px-3 py-2 hover:bg-gray-300"
+                  >
+                <span className="font-semibold text-gray-900">{tweetStats!.likes}</span> Likes
+                </button>
+                {isStatOpen && <FloatingModal type="statsList" tweetId={tweet.tweetId} stat={stat} onClose={() => setIsStatOpen(false)} />}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-around py-1 border-y border-gray-200">
+                {/* Reply */}
+                <button className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group">
+                  <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
+                    <MessageCircleMore className="h-5 w-5" />
+                  </div>
+                    <span className="text-sm">{tweetStats.replies > 0 ? formatNumber(tweetStats.replies) : ' '}</span>
+                </button>
+
+                {/* Retweet */}
+                <button 
+                  onClick={handleRetweet}
+                  disabled={isLoadingRetweet}
+                  className={`flex items-center space-x-2 transition-colors group ${
+                    isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
+                  } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                    <Repeat2 className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm">{tweetStats.retweets > 0 ? formatNumber(tweetStats.retweets) : ' '}</span>
+                </button>
+
+                {/* Like */}
+                <button 
+                  onClick={handleLike}
+                  disabled={isLoadingLike}
+                  className={`flex items-center space-x-2 transition-colors group ${
+                    isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                  } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
+                    <Heart className={`h-5 w-5 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
+                  </div>
+                  <span className="text-sm">{tweetStats.likes > 0 ? formatNumber(tweetStats.likes) : ' '}</span>
+                </button>
+                
+                {/* Bookmark */}
+                <button 
+                  onClick={handleBookmark}
+                  className={`flex items-center transition-colors group ${
+                    isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
+                  }`}
+                >
+                  <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                    <Bookmark className={`h-5 w-5 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
+                  </div>
+                </button>
+              </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-around py-1 border-y border-gray-200">
-              {/* Reply */}
-              <button className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group">
-                <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                  <MessageCircleMore className="h-5 w-5" />
-                </div>
-                  <span className="text-sm">{tweetStats.replies > 0 ? formatNumber(tweetStats.replies) : ' '}</span>
-              </button>
-
-              {/* Retweet */}
-              <button 
-                onClick={handleRetweet}
-                disabled={isLoadingRetweet}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                  <Repeat2 className="h-5 w-5" />
-                </div>
-                <span className="text-sm">{tweetStats.retweets > 0 ? formatNumber(tweetStats.retweets) : ' '}</span>
-              </button>
-
-              {/* Like */}
-              <button 
-                onClick={handleLike}
-                disabled={isLoadingLike}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-                } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
-                  <Heart className={`h-5 w-5 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-                </div>
-                <span className="text-sm">{tweetStats.likes > 0 ? formatNumber(tweetStats.likes) : ' '}</span>
-              </button>
-              
-              {/* Bookmark */}
-              <button 
-                onClick={handleBookmark}
-                className={`flex items-center transition-colors group ${
-                  isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
-                }`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                  <Bookmark className={`h-5 w-5 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
-                </div>
-              </button>
-            </div>
-          </div>
-        </article>
+          </article>
+        </>
       ) : (
         <div className="animate-pulse p-4 pb-2 border-b border-gray-200">
           <div className="flex space-x-3 mb-4">

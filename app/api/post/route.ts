@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
                         currentTweet = parentTweet;
                     } else break;
                 }
-                return NextResponse.json(parents);
+                return NextResponse.json(parents.length > 0 ? parents : null);
             }
             
             if (tweet) {

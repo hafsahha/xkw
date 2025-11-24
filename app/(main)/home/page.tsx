@@ -88,7 +88,7 @@ export default function Home() {
           {tweets!.map((tweet, index) => (
             <TweetCard
               key={`${tweet.tweetId}-${index}`}
-              tweet={tweet}
+              tweet={tweet} findRoot
               onRetweetSuccess={() => fetchFeed(activeTab)}
               onDeleteSuccess={() => fetchFeed(activeTab)}
             />
