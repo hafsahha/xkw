@@ -17,7 +17,7 @@ export async function GET() {
                 const likesCount = await likeCollection.countDocuments({ tweetId: tweetId });
                 const retweetsCount = await retweetCollection.countDocuments({ tweetId: tweetId });
                 const bookmarksCount = await bookmarkCollection.countDocuments({ tweetId: tweetId });
-                const repliesCount = await tweetCollection.countDocuments({ parentTweetId: tweet.tweetId, type: "Reply" });
+                const repliesCount = await tweetCollection.countDocuments({ parentTweetId: tweetId, type: "Reply" });
                 
                 await tweetCollection.updateOne({ _id: tweetId }, { $set: {
                     "stats.likes": likesCount,

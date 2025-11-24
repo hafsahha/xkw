@@ -82,7 +82,6 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
         const response = await fetch(`/api/post?${params.toString()}`);
         const data = await response.json();
         setTweetParents(data as Post[]);
-        console.log('Fetched tweet parents:', data);
       }
       if (loggedUser && tweet && tweet.type === "Reply") findRootTweet();
     }, [tweet, loggedUser]);
