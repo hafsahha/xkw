@@ -78,6 +78,18 @@ export async function GET(req: NextRequest) {
                 return NextResponse.json(detailedLikedTweets);
             }
 
+            // Filter bookmarked tweets only
+            if (searchParams.get("bookmarkedOnly") === "true") {
+                const bookmarkedTweets = await bookmarkCollection.find({ bookmarkedBy: username }).sort({ createdAt: -1 }).toArray();
+                const detailedBookmarkedTweets = await Promise.all(bookmarkedTweets.map(async (bookmark) => {
+                    const tweetObject = await tweetCollection.findOne({ _id: bookmark.tweetId });
+                    const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
+                    const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
+                    return { ...tweetObject, isLiked, isRetweeted, isBookmarked: true };
+                }));
+                return NextResponse.json(detailedBookmarkedTweets);
+            }
+
             const includeReplies = searchParams.get("includeReplies") === "true"; // Include reply tweets
             const mediaOnly = searchParams.get("mediaOnly") === "true"; // Filter media only tweets
             
