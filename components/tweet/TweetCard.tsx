@@ -116,7 +116,9 @@ export default function TweetCard({ tweet, sidebarMode, onRetweetSuccess }: { tw
           <div className="flex w-10 mt-0.5 justify-end">
             <Repeat2 className="h-4 w-4 flex-shrink-0" />
           </div>
-          <span>You retweeted</span>
+          <span>
+            {`${currentUser === tweet.author.username ? 'You' : tweet.author.name} retweeted`}
+          </span>
         </div>
       )}
 
