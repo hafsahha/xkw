@@ -227,4 +227,4 @@ Proyek ini dikembangkan oleh Kelompok 3:
 2. Hafsah Hamidah
 3. Natasha Adinda
 4. Zakiyah Hasanah
-5. Shizuka Mauli Putri
+5. Shizuka Maulia Putri
