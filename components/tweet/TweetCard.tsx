@@ -1,19 +1,22 @@
 "use client";
 import { Bookmark, Copy, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Post } from "@/lib/types";
+import { Post, User } from "@/lib/types";
 import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function TweetCard({
-  tweet, mediaOnly, findRoot, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
+  user, tweet, mediaOnly, findRoot, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
 }: {
-  tweet: Post, mediaOnly?: boolean, findRoot?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
+  user: User, tweet: Post, mediaOnly?: boolean, findRoot?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
 }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const retweetRef = useRef<HTMLDivElement | null>(null);
+  const [loggedUser, setLoggedUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
+  const [isRetweetOpen, setIsRetweetOpen] = useState(false);
+  const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const [localStats, setLocalStats] = useState(tweet.stats);
   const [tweetParents, setTweetParents] = useState<Post[] | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
@@ -25,29 +28,30 @@ export default function TweetCard({
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
-    const t = setTimeout(() => setCurrentUser(storedUser), 0);
+    const t = setTimeout(() => setLoggedUser(storedUser), 0);
     return () => clearTimeout(t);
   }, [])
 
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as Node | null;
-      if (!optionsRef.current) return;
-      if (target && !optionsRef.current.contains(target)) setIsOptionOpen(false);
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
-
-  useEffect(() => {
     async function findRootTweet() {
-      const params = new URLSearchParams({currentUser: String(currentUser), id: tweet.tweetId, findRoot: 'true'});
+      const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet.tweetId, findRoot: 'true'});
       const response = await fetch(`/api/post?${params.toString()}`);
       const data = await response.json();
       setTweetParents(data as Post[]);
     }
-    if (currentUser && findRoot && tweet.type === "Reply") findRootTweet();
-  }, [tweet, currentUser, findRoot]);
+    if (loggedUser && findRoot && tweet.type === "Reply") findRootTweet();
+  }, [tweet, loggedUser, findRoot]);
+
+  useEffect(() => {
+    async function fetchQuotedTweet() {
+      const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet.tweetId, quote: 'true'});
+      const response = await fetch(`/api/post?${params.toString()}`);
+      const data = await response.json();
+      setQuoteTweet(data as Post);
+      console.log("Quoted tweet fetched:", data);
+    }
+    if (loggedUser && tweet.type === "Quote") fetchQuotedTweet();
+  }, [tweet, loggedUser]);
 
   const handleLike = async () => {
     if (isLoadingLike) return; // Prevent duplicate clicks
@@ -60,7 +64,7 @@ export default function TweetCard({
       await fetch('/api/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+        body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
       });
     } catch {
       setIsLiked(!isLiked);
@@ -68,7 +72,7 @@ export default function TweetCard({
     } finally { setIsLoadingLike(false) }
   };
 
-  const handleRetweet = async () => {
+  const handleRetweet = async (type: 'rt' | 'qrt') => {
     if (isLoadingRetweet) return; // Prevent duplicate clicks
     
     setIsRetweeted(!isRetweeted);
@@ -76,11 +80,16 @@ export default function TweetCard({
     setIsLoadingRetweet(true);
     
     try {
-      const response = await fetch('/api/retweets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
-      });
+      let response;
+      if (type === 'rt') {
+        response = await fetch('/api/retweets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
+        });
+      } else {
+        // on progress
+      }
 
       if (response.ok) if (onRetweetSuccess) { onRetweetSuccess() }
     } finally { setIsLoadingRetweet(false) }
