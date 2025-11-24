@@ -13,11 +13,13 @@ export async function GET(req: NextRequest) {
     
     if (tweetCollection && userCollection && likeCollection && bookmarkCollection) {
         const searchParams = req.nextUrl.searchParams;
+        const findRoot = searchParams.get("findRoot") === "true";
         const currentUser = searchParams.get("currentUser");
         const username = searchParams.get("username");
         const tweetstats = searchParams.get("tweetstats");
         const id = searchParams.get("id");
 
+        // Get tweet stats only
         if (tweetstats) {
             const tweet = await tweetCollection.findOne({ tweetId: tweetstats });
             if (tweet) return NextResponse.json(tweet.stats)
@@ -31,6 +33,19 @@ export async function GET(req: NextRequest) {
         // Get a single tweet data by tweet ID
         if (id) {
             const tweet = await tweetCollection.findOne({ tweetId: id });
+            if (findRoot) {
+                const parents = [];
+                let currentTweet = tweet;
+                while (currentTweet && currentTweet.parentTweetId) {
+                    const parentTweet = await tweetCollection.findOne({ _id: currentTweet.parentTweetId });
+                    if (parentTweet) {
+                        parents.unshift(parentTweet);
+                        currentTweet = parentTweet;
+                    } else break;
+                }
+                return NextResponse.json(parents);
+            }
+            
             if (tweet) {
                 const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null;
                 const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;

@@ -84,7 +84,7 @@ export default function Home() {
 
       {/* Tweet Feed */}
       {tweets ? (
-        <div className="divide-y divide-gray-200">
+        <div className="">
           {tweets!.map((tweet, index) => (
             <TweetCard
               key={`${tweet.tweetId}-${index}`}
