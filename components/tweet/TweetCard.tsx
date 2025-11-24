@@ -3,6 +3,7 @@ import { Bookmark, Copy, Ellipsis, Heart, MessageCircleMore, Repeat2, Share2 } f
 import { useEffect, useRef, useState } from "react";
 import { Post, User } from "@/lib/types";
 import FloatingModal from "../ui/FloatingModal";
+import NewPostModal from "../NewPostModal";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -102,10 +103,10 @@ export default function TweetCard({
     setIsLoadingBookmark(true);
 
     try {
-      await fetch('/api/bookmark', {
+      await fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUser, tweetId: tweet.tweetId })
+        body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
       });
     } finally { setIsLoadingBookmark(false) }
   };
@@ -145,7 +146,7 @@ export default function TweetCard({
 
   return (
     <>
-      {tweetParents && tweetParents.map((parent, idx) => ( <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} /> ))}
+      {tweetParents && tweetParents.map((parent, idx) => ( <TweetCard key={parent.tweetId} user={user} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} /> ))}
       <article 
       className={`p-4 ${tweet.type === 'Retweet' ? 'pt-1' : ''} hover:bg-gray-50/50 transition-colors cursor-pointer
         ${(isRoot || isMid) ? 'border-0 pb-0' : 'border-b border-gray-200'} ${(tweetParents || isMid) ? 'pt-0' : ''}
@@ -159,7 +160,7 @@ export default function TweetCard({
               <Repeat2 className="h-4 w-4 flex-shrink-0" />
             </div>
             <span>
-              {`${currentUser === tweet.author.username ? 'You' : tweet.author.name} retweeted`}
+              {`${loggedUser === tweet.author.username ? 'You' : tweet.author.name} retweeted`}
             </span>
           </div>
         )}
@@ -237,18 +238,21 @@ export default function TweetCard({
               </button>
 
               {/* Retweet */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
-                disabled={isLoadingRetweet}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                  <Repeat2 className="h-4 w-4" />
-                </div>
-                <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
-              </button>
+              <div ref={retweetRef} className="relative">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsRetweetOpen(true); }}
+                  disabled={isLoadingRetweet}
+                  className={`flex items-center space-x-2 transition-colors group ${
+                    isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
+                  } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                    <Repeat2 className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
+                </button>
+                {isRetweetOpen && <FloatingModal tweet={tweet} type="retweetOptions" onSelect={handleRetweet} onClose={() => setIsRetweetOpen(false)} />}
+              </div>
 
               {/* Like */}
               <button 
