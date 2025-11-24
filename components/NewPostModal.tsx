@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { User } from "@/lib/types";
+import Image from "next/image";
 
 interface NewPostModalProps {
   isOpen: boolean;
@@ -116,9 +117,9 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
             {/* User Avatar */}
             <div className="flex-shrink-0" suppressHydrationWarning={true}>
               {user ? (
-                <img
-                  src={`/img/${user.media.profileImage}`}
-                  alt="User Avatar"
+                <Image
+                  src={`/img/${user.media.avatar ?? "default_avatar.png"}`} alt={user.name}
+                  width={48} height={48}
                   className="w-12 h-12 rounded-full"
                 />
               ) : (
@@ -150,10 +151,11 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
                   >
                     {Array.from(images).map((file, index) => (
                       <div key={index} className="relative">
-                        <img
+                        <Image
                           src={URL.createObjectURL(file)}
                           alt={`Upload ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                          width={180} height={128}
                         />
                         <button
                           type="button"
