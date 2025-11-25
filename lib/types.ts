@@ -86,3 +86,29 @@ export interface TrendingTopic {
   hashtag: string;
   count: number;
 }
+
+// Notification system types
+export interface Notification {
+  _id: string;
+  type: "like" | "retweet" | "follow" | "reply" | "quote" | "mention";
+  recipientId: string; // User who receives the notification
+  actorId: string; // User who performed the action
+  actor: {
+    name: string;
+    username: string;
+    avatar: string;
+  };
+  tweetId?: string; // For tweet-related notifications
+  tweet?: {
+    tweetId: string;
+    content: string;
+    media: string[];
+    author: {
+      name: string;
+      username: string;
+    };
+  };
+  message?: string; // Custom message for reply/quote notifications
+  createdAt: string;
+  read: boolean;
+}

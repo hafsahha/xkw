@@ -1,7 +1,7 @@
 "use client";
 import { Bell, Bookmark, House, Plus, Search, User2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "@/lib/types";
 import NewPostModal from "@/components/NewPostModal";
 import Link from "next/link";
@@ -11,6 +11,39 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
   const router = useRouter();
   const pathname = usePathname();
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loggedUser, setLoggedUser] = useState<string | null>(null);
+
+  // Check for logged user
+  useEffect(() => {
+    const storedUser = localStorage.getItem('loggedUser');
+    setLoggedUser(storedUser);
+  }, []);
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    async function fetchUnreadCount() {
+      if (!loggedUser) return;
+      
+      try {
+        const response = await fetch(`/api/notifications?username=${loggedUser}&limit=50`);
+        if (response.ok) {
+          const notifications = await response.json();
+          const count = notifications.filter((n: any) => !n.read).length;
+          setUnreadCount(count);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    }
+
+    if (loggedUser) {
+      fetchUnreadCount();
+      // Refresh count every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [loggedUser]);
   
   const navigationItems = [
     { name: "Home", href: "/home", icon: House },
@@ -67,7 +100,7 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
                 href={item.href}
                 onClick={onClose}
                 className={`
-                  flex items-center md:justify-center lg:justify-start space-x-4 lg:space-x-4 md:space-x-0 px-4 md:px-2 lg:px-4 py-3 rounded-full transition-colors group
+                  relative flex items-center md:justify-center lg:justify-start space-x-4 lg:space-x-4 md:space-x-0 px-4 md:px-2 lg:px-4 py-3 rounded-full transition-colors group
                   ${isActive 
                     ? 'bg-pink-50 text-pink-600 font-semibold' 
                     : 'text-gray-700 hover:bg-gray-100'
@@ -75,7 +108,14 @@ export default function Sidebar({ onClose, user }: { onClose?: () => void, user:
                 `}
                 title={item.name}
               >
-                <Icon className="w-6 h-6" />
+                <div className="relative">
+                  <Icon className="w-6 h-6" />
+                  {item.name === "Notifications" && unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </div>
+                  )}
+                </div>
                 <span className="text-lg md:hidden lg:block">{item.name}</span>
               </Link>
             );

@@ -1,50 +1,73 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Notification } from "@/lib/types";
+import Image from "next/image";
+import Link from "next/link";
+
 export default function NotificationsPage() {
-  const notifications = [
-    {
-      id: "1",
-      type: "like",
-      user: { name: "Sarah Designer", username: "sarahdesign" },
-      content: "liked your post",
-      tweet: "Just shipped a new feature using Next.js 14! The app directory is a game changer...",
-      time: "2h",
-      read: false
-    },
-    {
-      id: "2", 
-      type: "retweet",
-      user: { name: "Tech News", username: "technews" },
-      content: "retweeted your post",
-      tweet: "Building a startup is like solving a puzzle where the pieces keep changing...",
-      time: "4h",
-      read: false
-    },
-    {
-      id: "3",
-      type: "follow",
-      user: { name: "React Developer", username: "reactdev" },
-      content: "started following you",
-      time: "1d",
-      read: true
-    },
-    {
-      id: "4",
-      type: "reply",
-      user: { name: "John Developer", username: "johndev" },
-      content: "replied to your post",
-      tweet: "Great insight! I've been using similar patterns in my projects...",
-      time: "2d",
-      read: true
-    },
-    {
-      id: "5",
-      type: "mention",
-      user: { name: "Web Dev Tips", username: "webdevtips" },
-      content: "mentioned you in a post",
-      tweet: "Thanks @username for the amazing tutorial on React hooks!",
-      time: "3d",
-      read: true
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loggedUser, setLoggedUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('loggedUser');
+    setLoggedUser(storedUser);
+  }, []);
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      if (!loggedUser) return;
+      
+      try {
+        const response = await fetch(`/api/notifications?username=${loggedUser}&limit=50`);
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    if (loggedUser) {
+      fetchNotifications();
+    }
+  }, [loggedUser]);
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes}m`;
+  };
+
+  const getNotificationText = (notification: Notification) => {
+    switch (notification.type) {
+      case "like":
+        return "liked your post";
+      case "retweet":
+        return "retweeted your post";
+      case "follow":
+        return "started following you";
+      case "reply":
+        return "replied to your post";
+      case "quote":
+        return "quoted your post";
+      case "mention":
+        return "mentioned you in a post";
+      default:
+        return "interacted with your content";
+    }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -80,6 +103,14 @@ export default function NotificationsPage() {
             </svg>
           </div>
         );
+      case "quote":
+        return (
+          <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+            <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+          </div>
+        );
       case "mention":
         return (
           <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -103,55 +134,125 @@ export default function NotificationsPage() {
     <>
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-10">
-        <h1 className="text-xl font-bold text-black">Notifications</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-black">Notifications</h1>
+          {notifications.some(n => !n.read) && (
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/notifications', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: loggedUser })
+                  });
+                  if (response.ok) {
+                    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  }
+                } catch (error) {
+                  console.error("Failed to mark all as read:", error);
+                }
+              }}
+              className="text-sm text-pink-500 hover:text-pink-600 font-medium"
+            >
+              Mark all as read
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notifications List */}
       <div className="divide-y divide-gray-200">
-        {notifications.map((notification) => (
-          <div 
-            key={notification.id} 
-            className={`p-4 hover:bg-gray-50/50 transition-colors cursor-pointer ${
-              !notification.read ? 'bg-pink-50/30' : ''
-            }`}
-          >
-            <div className="flex space-x-3">
-              {/* Notification Icon */}
-              {getNotificationIcon(notification.type)}
-              
-              {/* User Avatar */}
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-              
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-gray-900">
-                      <span className="font-semibold hover:underline cursor-pointer">
-                        {notification.user.name}
-                      </span>
-                      <span className="text-gray-500 ml-1">@{notification.user.username}</span>
-                      <span className="text-gray-700 ml-1">{notification.content}</span>
-                    </p>
+{loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          </div>
+        ) : (
+          notifications.map((notification) => (
+            <div 
+              key={notification._id} 
+              className={`p-4 hover:bg-gray-50/50 transition-colors cursor-pointer ${
+                !notification.read ? 'bg-pink-50/30' : ''
+              }`}
+            >
+              <div className="flex space-x-3">
+                {/* Notification Icon */}
+                {getNotificationIcon(notification.type)}
+                
+                {/* User Avatar */}
+                <Link href={`/profile/${notification.actor.username}`} className="w-10 h-10 flex-shrink-0">
+                  <Image 
+                    src={`/img/${notification.actor.avatar}`} 
+                    alt={notification.actor.name} 
+                    className="w-full h-full rounded-full object-cover" 
+                    width={40} 
+                    height={40} 
+                  />
+                </Link>
+                
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-gray-900">
+                        <Link href={`/profile/${notification.actor.username}`} className="font-semibold hover:underline cursor-pointer">
+                          {notification.actor.name}
+                        </Link>
+                        <span className="text-gray-500 ml-1">@{notification.actor.username}</span>
+                        <span className="text-gray-700 ml-1">{getNotificationText(notification)}</span>
+                      </p>
+                      
+                      {notification.tweet && (
+                        <Link 
+                          href={`/tweet/${notification.tweet.tweetId}`}
+                          className="block mt-2 p-3 bg-gray-50 rounded-lg border-l-2 border-pink-500 hover:bg-gray-100 transition-colors"
+                        >
+                          <p className="text-gray-700 text-sm">
+                            {notification.type === "reply" || notification.type === "quote" 
+                              ? notification.message 
+                              : notification.tweet.content}
+                          </p>
+                          {notification.tweet.media.length > 0 && (
+                            <div className="mt-2 flex space-x-1">
+                              {notification.tweet.media.slice(0, 2).map((media, idx) => (
+                                <div key={idx} className="w-8 h-8 bg-gray-200 rounded overflow-hidden">
+                                  <Image 
+                                    src={`/img/${media}`} 
+                                    alt={`Media ${idx + 1}`} 
+                                    className="w-full h-full object-cover" 
+                                    width={32} 
+                                    height={32} 
+                                  />
+                                </div>
+                              ))}
+                              {notification.tweet.media.length > 2 && (
+                                <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600">
+                                  +{notification.tweet.media.length - 2}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Link>
+                      )}
+
+                      {notification.message && notification.type !== "reply" && notification.type !== "quote" && (
+                        <div className="mt-2 p-3 bg-gray-50 rounded-lg border-l-2 border-pink-500">
+                          <p className="text-gray-700 text-sm">{notification.message}</p>
+                        </div>
+                      )}
+                    </div>
                     
-                    {notification.tweet && (
-                      <div className="mt-2 p-3 bg-gray-50 rounded-lg border-l-2 border-pink-500">
-                        <p className="text-gray-700 text-sm">{notification.tweet}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-500 text-sm">{notification.time}</span>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-500 text-sm">{formatTime(notification.createdAt)}</span>
+                      {!notification.read && (
+                        <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Empty State */}

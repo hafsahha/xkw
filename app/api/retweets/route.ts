@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { createNotification } from "@/app/api/notifications/route";
 
 // Get tweet retweeters (users who retweeted a specific tweet, excluding quotes)
 export async function GET(req: NextRequest) {
@@ -59,6 +60,17 @@ export async function POST(req: NextRequest) {
             };
             await retweetsCollection.insertOne(newRetweet);
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.retweets": 1 } });
+
+            // Create notification for the tweet author
+            if (tweetObject.author.username !== username) {
+                await createNotification({
+                    type: "retweet",
+                    recipientUsername: tweetObject.author.username,
+                    actorUsername: username,
+                    tweetId: tweetId
+                });
+            }
+
             return NextResponse.json({ message: "Retweet added successfully" }, { status: 201 });
         }
     }
