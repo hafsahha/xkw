@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Link as LinkIcon } from "lucide-react"; // Import MapPin dan LinkIcon
 import { Post, User } from "@/lib/types";
 import TweetCard from "@/components/tweet/TweetCard";
 import Image from "next/image";
@@ -59,7 +59,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     const checkFollowingStatus = () => {
       const loggedInUsername = currentUser;
       if (!loggedInUsername || !userData) return false;
-      return userData.followers.includes(loggedInUsername);
+      // Perhatikan bahwa `followers` seharusnya adalah array dari username
+      return userData.followers && Array.isArray(userData.followers) && userData.followers.includes(loggedInUsername);
     };
 
     setIsFollowing(checkFollowingStatus());
@@ -71,17 +72,45 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }
 
     try {
-      await fetch("/api/user", {
+      // Pastikan userData ada sebelum mengirim followee
+      if (!userData) return;
+      
+      const response = await fetch("/api/user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           follower: currentUser,
-          followee: userData?.username,
+          followee: userData.username,
         }),
       });
-      setIsFollowing((prev) => !prev);
+
+      if (response.ok) {
+          // Hanya update state jika API call berhasil
+          setIsFollowing((prev) => !prev);
+          
+          // Opsional: Update statistik follower secara lokal (lebih cepat dari re-fetch)
+          setUserData(prev => {
+              if (!prev) return null;
+              const newFollowers = isFollowing 
+                  ? prev.followers.filter(f => f !== currentUser)
+                  : [...prev.followers, currentUser];
+
+              return {
+                  ...prev,
+                  followers: newFollowers,
+                  stats: {
+                      ...prev.stats,
+                      followers: newFollowers.length 
+                  }
+              }
+          })
+
+      } else {
+        alert("Failed to update follow status.");
+      }
     } catch (error) {
-      alert(`Failed to update follow status: ${error}`);
+      console.error(error);
+      alert(`An error occurred while updating follow status.`);
     }
   };
 
@@ -100,7 +129,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       {/* Header */}
       <div className="sticky top-0 px-4 py-1 bg-white/50 backdrop-blur-md border-b border-gray-200 z-10">
         <div className="flex items-center space-x-4">
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black">
+          <button onClick={() => window.history.back()} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-black">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
@@ -128,19 +157,19 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           {/* Avatar */}
           <Image
             src={`/img/${userData.media.avatar ?? "default_avatar.png"}`} alt={userData.name}
-            className="relative -mt-20 mb-4 w-40 h-40 bg-gray-300 rounded-full border-4 border-white"
+            className="relative -mt-20 mb-4 w-40 h-40 bg-gray-300 rounded-full border-4 border-white object-cover"
             width={160} height={160}
           />
 
           {/* Edit Profile Button */}
           <div className="relative -mt-20 flex justify-end mb-10">
             {isMyself ? (
-              <button 
-                onClick={() => window.location.href = '/profile/edit'}
+              <Link
+                href={`/profile/edit?username=${userData.username}`}
                 className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:bg-gray-50 transition-colors"
               >
                 Edit profile
-              </button>
+              </Link>
             ) : (
               <button
                 onClick={handleFollowToggle}
@@ -163,7 +192,32 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             </div>
 
             {userData.bio && <p className="text-gray-900 text-sm sm:text-base">{userData.bio}</p> }
+            
+            {/* Location, Website, and Join Date Container */}
             <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm">
+                
+              {/* Location */}
+              {userData.location && (
+                <div className="flex items-center space-x-1">
+                  <MapPin className="w-4 h-4" />
+                  <span>{userData.location}</span>
+                </div>
+              )}
+
+              {/* Website */}
+              {userData.website && (
+                <Link 
+                  href={userData.website.startsWith('http') ? userData.website : `https://${userData.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1 hover:underline text-pink-600 hover:text-pink-700"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span className="truncate max-w-[200px]">{userData.website.replace(/https?:\/\/(www\.)?/, '')}</span>
+                </Link>
+              )}
+
+              {/* Join Date (Tetap di sini) */}
               <div className="flex items-center space-x-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

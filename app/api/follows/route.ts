@@ -36,7 +36,22 @@ export async function GET(req: NextRequest) {
                 const followerDetails = await Promise.all(
                     followers.map(async (follow) => {
                         const user = await usersCollection.findOne({ _id: follow.followerId });
-                        return user ? { ...user, followedAt: follow.createdAt } : null;
+                        if (user) {
+                            const followerCount = await followsCollection.countDocuments({ followingId: user._id });
+                            const followingCount = await followsCollection.countDocuments({ followerId: user._id });
+                            return {
+                                ...user,
+                                followedAt: follow.createdAt,
+                                stats: {
+                                    followers: followerCount,
+                                    following: followingCount,
+                                },
+                                media: {
+                                    profileImage: user.media?.avatar || "/img/default-avatar.png",
+                                },
+                            };
+                        }
+                        return null;
                     })
                 );
                 return NextResponse.json({ followers: followerDetails.filter(Boolean), count: followerDetails.length });
@@ -46,7 +61,22 @@ export async function GET(req: NextRequest) {
                 const followingDetails = await Promise.all(
                     following.map(async (follow) => {
                         const user = await usersCollection.findOne({ _id: follow.followingId });
-                        return user ? { ...user, followedAt: follow.createdAt } : null;
+                        if (user) {
+                            const followerCount = await followsCollection.countDocuments({ followingId: user._id });
+                            const followingCount = await followsCollection.countDocuments({ followerId: user._id });
+                            return {
+                                ...user,
+                                followedAt: follow.createdAt,
+                                stats: {
+                                    followers: followerCount,
+                                    following: followingCount,
+                                },
+                                media: {
+                                    profileImage: user.media?.avatar || "/img/default-avatar.png",
+                                },
+                            };
+                        }
+                        return null;
                     })
                 );
                 return NextResponse.json({ following: followingDetails.filter(Boolean), count: followingDetails.length });

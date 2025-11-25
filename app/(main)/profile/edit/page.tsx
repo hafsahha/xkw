@@ -1,15 +1,63 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { User } from "@/lib/types";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+// Impor yang tidak terpakai sudah dihapus
 
 export default function EditProfilePage() {
+  const router = useRouter();
+  const [username, setUsername] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
-    name: "John Doe",
-    bio: "Full-stack developer passionate about web technologies. Building cool stuff with React, Next.js, and Node.js.",
-    location: "San Francisco, CA",
-    website: "https://johndoe.dev",
+    name: "",
+    bio: "",
+    location: "",
+    website: "",
+    avatar: "",
+    banner: ""
   });
-
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    // Fetch username from query string after component mounts
+    const queryUsername = new URLSearchParams(window.location.search).get("username");
+    setUsername(queryUsername);
+  }, []);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (username) {
+        setIsLoading(true);
+        try {
+          const response = await fetch(`/api/user?username=${username}`);
+          const data = await response.json();
+          if (data.error) {
+            console.error(data.error);
+          } else {
+            setUser(data);
+            setFormData({
+              name: data.name || "",
+              bio: data.bio || "",
+              location: data.location || "",
+              website: data.website || "",
+              avatar: data.media?.avatar || "",
+              banner: data.media?.banner || ""
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchUser();
+  }, [username]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -19,13 +67,96 @@ export default function EditProfilePage() {
   };
 
   const handleSave = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate back to profile
-      window.history.back();
-    }, 1000);
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      // Upload files first if any
+      let avatarPath = formData.avatar;
+      let bannerPath = formData.banner;
+
+      if (avatarFile || bannerFile) {
+        const uploadFormData = new FormData();
+        if (avatarFile) uploadFormData.append("avatar", avatarFile);
+        if (bannerFile) uploadFormData.append("banner", bannerFile);
+        uploadFormData.append("username", user.username);
+
+        const uploadResponse = await fetch("/api/user/upload", {
+          method: "POST",
+          body: uploadFormData
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          if (uploadData.avatarPath) avatarPath = uploadData.avatarPath;
+          if (uploadData.bannerPath) bannerPath = uploadData.bannerPath;
+        }
+      }
+
+      // Update user profile
+      const updateData: any = {
+        username: user.username,
+        name: formData.name,
+        bio: formData.bio,
+        location: formData.location,
+        website: formData.website
+      };
+
+      if (avatarFile) updateData.avatar = avatarPath;
+      if (bannerFile) updateData.banner = bannerPath;
+
+      const response = await fetch("/api/user/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        // Navigasi ke halaman profil setelah berhasil update
+        router.push(`/profile/${user.username}`);
+      } else {
+        alert("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("An error occurred while updating profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setFormData(prev => ({ ...prev, avatar: URL.createObjectURL(file) }));
+    }
+  };
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBannerFile(file);
+      setFormData(prev => ({ ...prev, banner: URL.createObjectURL(file) }));
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">User not found</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -46,10 +177,10 @@ export default function EditProfilePage() {
           </div>
           <button
             onClick={handleSave}
-            disabled={isLoading}
+            disabled={isSaving}
             className="bg-black text-white px-4 py-1.5 rounded-full font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Saving..." : "Save"}
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
@@ -57,29 +188,61 @@ export default function EditProfilePage() {
       <div className="w-full max-w-2xl mx-auto">
         {/* Cover Photo */}
         <div className="relative">
-          <div className="h-32 sm:h-48 bg-gradient-to-r from-blue-400 to-purple-500"></div>
-          <button className="absolute inset-0 bg-black/50 flex items-center justify-center hover:bg-black/60 transition-colors">
+          {formData.banner ? (
+            <Image
+              src={formData.banner.startsWith('blob:') ? formData.banner : `/img/${formData.banner}`}
+              alt="Banner"
+              width={600}
+              height={200}
+              className="h-32 sm:h-48 w-full object-cover"
+            />
+          ) : (
+            <div className="h-32 sm:h-48 bg-gradient-to-r from-blue-400 to-purple-500"></div>
+          )}
+          <label className="absolute inset-0 bg-black/50 flex items-center justify-center hover:bg-black/60 transition-colors cursor-pointer">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleBannerChange}
+              className="hidden"
+            />
             <div className="bg-black/70 p-2 sm:p-3 rounded-full">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-          </button>
+          </label>
         </div>
 
         {/* Avatar */}
         <div className="relative px-4 -mt-12 sm:-mt-16 mb-6">
           <div className="relative inline-block">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-300 rounded-full border-4 border-white"></div>
-            <button className="absolute inset-0 bg-black/50 flex items-center justify-center hover:bg-black/60 transition-colors rounded-full">
+            {formData.avatar ? (
+              <Image
+                src={formData.avatar.startsWith('blob:') ? formData.avatar : `/img/${formData.avatar}`}
+                alt={user.name || user.username}
+                width={128}
+                height={128}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-300 rounded-full border-4 border-white"></div>
+            )}
+            <label className="absolute inset-0 bg-black/50 flex items-center justify-center hover:bg-black/60 transition-colors rounded-full cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
               <div className="bg-black/70 p-1.5 sm:p-2 rounded-full">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-            </button>
+            </label>
           </div>
         </div>
 
@@ -116,9 +279,10 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* Location */}
+          {/* Location - TANPA IKON */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+            {/* Mengembalikan ke input field standar */}
             <input
               type="text"
               value={formData.location}
@@ -132,9 +296,10 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* Website */}
+          {/* Website - TANPA IKON */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            {/* Mengembalikan ke input field standar */}
             <input
               type="url"
               value={formData.website}
