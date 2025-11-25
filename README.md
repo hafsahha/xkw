@@ -79,59 +79,64 @@ Aplikasi ini menggunakan MongoDB sebagai database utama. Berikut adalah struktur
 Berikut adalah diagram ER yang menggambarkan hubungan antar koleksi dalam database:
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: neo
+  theme: redux-color
+---
 erDiagram
-
     USERS {
         ObjectId _id
         string username
         string email
         string password
-        object media
         string name
         string bio
+        string location
+        string website
+        object media
         object stats
+        array followers
+        array following
         date createdAt
     }
-
     TWEETS {
         ObjectId _id
+        string tweetId
         object author
         string content
         array media
         ObjectId parentTweetId
         string type
         object stats
+        array replies
         date createdAt
     }
-
     FOLLOWS {
         ObjectId _id
         ObjectId followerId
         ObjectId followingId
         date createdAt
     }
-
     LIKES {
         ObjectId _id
-        ObjectId userId
+        ObjectId likedBy
         ObjectId tweetId
         date createdAt
     }
-
     BOOKMARKS {
         ObjectId _id
-        ObjectId userId
+        ObjectId bookmarkedBy
         ObjectId tweetId
         date createdAt
     }
-
     RETWEETS {
         ObjectId _id
-        ObjectId userId
+        ObjectId retweetedBy
         ObjectId tweetId
         date createdAt
     }
-
     NOTIFICATIONS {
         ObjectId _id
         ObjectId receiverId
@@ -141,38 +146,16 @@ erDiagram
         boolean isRead
         date createdAt
     }
-
-    HASHTAGS {
-        string _id
-        number count
-        date lastUsed
-    }
-
-    TIMELINES {
-        ObjectId _id
-        array tweets
-    }
-
-    DRAFTS {
-        ObjectId _id
-        ObjectId userId
-        string content
-        array media
-        date updatedAt
-    }
     USERS ||--o{ TWEETS : "writes"
-    USERS ||--o{ FOLLOWS : "follows"
+    USERS ||--o{ FOLLOWS : "follows/followed_by"
     USERS ||--o{ LIKES : "likes"
     USERS ||--o{ BOOKMARKS : "bookmarks"
     USERS ||--o{ RETWEETS : "retweets"
     USERS ||--o{ NOTIFICATIONS : "receives"
-
     TWEETS ||--o{ LIKES : "is liked by"
     TWEETS ||--o{ RETWEETS : "is retweeted by"
     TWEETS ||--o{ BOOKMARKS : "is bookmarked by"
     TWEETS ||--o{ NOTIFICATIONS : "triggers"
-    TWEETS ||--o{ TIMELINES : "appears in"
-
     TWEETS ||--o| TWEETS : "replies to / quotes"
 ```
 
