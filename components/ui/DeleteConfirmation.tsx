@@ -16,16 +16,24 @@ export default function DeleteConfirmation({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleConfirm = async () => {
+    console.log('[DeleteConfirmation] Delete confirm button clicked!');
     setIsDeleting(true);
     try {
-      await onConfirm();
+      console.log('[DeleteConfirmation] About to call onConfirm...');
+      const result = await onConfirm();
+      console.log('[DeleteConfirmation] onConfirm completed successfully', result);
+    } catch (error) {
+      console.error('[DeleteConfirmation] onConfirm failed:', error);
     } finally {
+      console.log('[DeleteConfirmation] Setting isDeleting to false');
       setIsDeleting(false);
     }
   };
 
   if (!isOpen) return null;
 
+  console.log('[DeleteConfirmation] Modal is opening!', { isDeleting, isLoading, onConfirm: typeof onConfirm });
+  
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onCancel}>
       <div 
@@ -52,14 +60,33 @@ export default function DeleteConfirmation({
         {/* Buttons */}
         <div className="px-6 pb-6 space-y-3">
           <button
-            onClick={handleConfirm}
+            onClick={(e) => {
+              console.log('[DeleteConfirmation] Delete button onClick fired!', { isDeleting, isLoading });
+              e.preventDefault();
+              e.stopPropagation();
+              handleConfirm();
+            }}
+            onMouseDown={(e) => {
+              console.log('[DeleteConfirmation] Delete button onMouseDown! Triggering handleConfirm directly');
+              e.preventDefault();
+              e.stopPropagation();
+              handleConfirm();
+            }}
+            onMouseUp={(e) => {
+              console.log('[DeleteConfirmation] Delete button onMouseUp!');
+            }}
             disabled={isDeleting || isLoading}
             className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-full transition-colors"
           >
             {isDeleting || isLoading ? "Deleting..." : "Delete"}
           </button>
           <button
-            onClick={onCancel}
+            onClick={(e) => {
+              console.log('[DeleteConfirmation] Cancel button clicked!');
+              e.preventDefault();
+              e.stopPropagation();
+              onCancel();
+            }}
             disabled={isDeleting || isLoading}
             className="w-full bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 font-bold py-2.5 px-4 rounded-full transition-colors"
           >

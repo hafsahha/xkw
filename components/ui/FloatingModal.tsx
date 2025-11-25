@@ -10,6 +10,10 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
   const [tweetObj, setTweetObj] = useState<Post | null>(null)
   const [userList, setUserList] = useState<User[] | null>(null)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  
+  useEffect(() => {
+    console.log('[FloatingModal] isDeleteConfirmOpen changed:', isDeleteConfirmOpen);
+  }, [isDeleteConfirmOpen]);
 
   useEffect(() => {
     if (!onClose) return;
@@ -37,12 +41,15 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
-    const t = setTimeout(() => setCurrentUser(storedUser === tweet?.author.username), 0);
+    const isCurrentUser = storedUser === tweet?.author.username;
+    console.log('[FloatingModal] Setting currentUser:', { storedUser, tweetAuthor: tweet?.author.username, isCurrentUser });
+    const t = setTimeout(() => setCurrentUser(isCurrentUser), 0);
     return () => clearTimeout(t);
   }, [tweet?.author.username])
 
   useEffect(() => {
     async function fetchTweet() {
+      if (!tweetId) return;
       const response = await fetch(`/api/post?tweetstats=${tweetId}`);
       const data = await response.json();
       setTweetObj(data as Post);
@@ -52,6 +59,7 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
 
   useEffect(() => {
     async function fetchUsers() {
+      if (!stat || !tweetId) return;
       const response = await fetch(`/api/${stat}?id=${tweetId}`);
       const data = await response.json();
       setUserList(data as User[]);
@@ -60,9 +68,14 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
   }, [stat, tweetId]);
 
   async function deleteTweet() {
-    if (!tweet) return;
+    if (!tweet) {
+      console.error('[FloatingModal] deleteTweet called but tweet is null');
+      return;
+    }
     
     const loggedUser = localStorage.getItem('loggedUser');
+    
+    console.log('[FloatingModal] deleteTweet - Starting delete:', { tweetId: tweet.tweetId, username: loggedUser });
     
     try {
       const response = await fetch('/api/post', {
@@ -71,17 +84,27 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
         body: JSON.stringify({ tweetId: tweet.tweetId, username: loggedUser })
       });
 
+      console.log('[FloatingModal] deleteTweet - Response received:', { status: response.status, ok: response.ok });
+
       if (response.ok) {
-        if (onDeleteSuccess) onDeleteSuccess();
-        if (onClose) onClose();
+        console.log('[FloatingModal] deleteTweet - SUCCESS! Calling callbacks');
+        if (onDeleteSuccess) {
+          console.log('[FloatingModal] deleteTweet - Calling onDeleteSuccess');
+          onDeleteSuccess();
+        }
+        if (onClose) {
+          console.log('[FloatingModal] deleteTweet - Calling onClose');
+          onClose();
+        }
         setIsDeleteConfirmOpen(false);
       } else {
         const error = await response.json();
+        console.error('[FloatingModal] deleteTweet - FAILED:', { status: response.status, error });
         alert(error.message || 'Failed to delete tweet');
       }
     } catch (error) {
-      console.error('Error deleting tweet:', error);
-      alert('Failed to delete tweet');
+      console.error('[FloatingModal] deleteTweet - EXCEPTION:', error);
+      alert('Failed to delete tweet: ' + String(error));
     }
   }
 
@@ -91,20 +114,24 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
     { icon: Flag, text: "Report tweet" }
   ]
 
-  if (type === 'tweetOptions' && currentUser !== null) return (
+  if (type === 'tweetOptions') return (
     <>
       <div className="floating-modal absolute top-0 right-0 w-60 bg-white text-gray-900 rounded-lg shadow z-9">
         {currentUser ? (
           <button
-            onClick={(e) => { e.stopPropagation(); setIsDeleteConfirmOpen(true); }}
-            className="flex w-full px-4 py-3 font-semibold items-center gap-2"
+            onClick={(e) => { 
+              console.log('[FloatingModal] Delete tweet button clicked!'); 
+              e.stopPropagation(); 
+              setIsDeleteConfirmOpen(true); 
+            }}
+            className="flex w-full px-4 py-3 font-semibold items-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <Trash className="w-5 h-5 flex-shrink-0 text-red-500" />
             Delete tweet
           </button>
         ) : (
           tweetOptions.map((option, _) => (
-            <div key={_} className="flex px-4 py-3 font-semibold items-center gap-2">
+            <div key={_} className="flex px-4 py-3 font-semibold items-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer">
               <option.icon className="w-5 h-5 flex-shrink-0" />
               {option.text}
             </div>
@@ -113,8 +140,14 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, on
       </div>
       <DeleteConfirmation 
         isOpen={isDeleteConfirmOpen}
-        onConfirm={deleteTweet}
-        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          console.log('[FloatingModal] onConfirm called, calling deleteTweet');
+          deleteTweet();
+        }}
+        onCancel={() => {
+          console.log('[FloatingModal] onCancel called');
+          setIsDeleteConfirmOpen(false);
+        }}
       />
     </>
   )

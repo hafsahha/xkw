@@ -48,3 +48,46 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         return NextResponse.json({ message: "Failed to upload file", error }, { status: 500 });
     }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+    try {
+        const { id } = params;
+        const body = await req.json();
+        const { mediaUrls } = body;
+
+        if (!mediaUrls || !Array.isArray(mediaUrls)) {
+            return NextResponse.json({ message: "No media URLs provided" }, { status: 400 });
+        }
+
+        // Delete each media file
+        for (const mediaUrl of mediaUrls) {
+            try {
+                // Extract filename from URL (e.g., /uploads/filename.jpg -> filename.jpg)
+                let fileName = mediaUrl;
+                if (mediaUrl.includes('/')) {
+                    fileName = mediaUrl.split('/').pop() || mediaUrl;
+                }
+                
+                const filePath = path.join(uploadDir, fileName);
+                
+                // Check if file exists before deleting
+                try {
+                    await fs.access(filePath);
+                    await fs.unlink(filePath);
+                    console.log(`[DELETE /api/post/[id]/image] Deleted file: ${fileName}`);
+                } catch (accessError) {
+                    console.warn(`[DELETE /api/post/[id]/image] File not found, skipping: ${fileName}`);
+                    // Don't fail if file doesn't exist, just skip it
+                }
+            } catch (error) {
+                console.error(`[DELETE /api/post/[id]/image] Error deleting ${mediaUrl}:`, error);
+                // Continue deleting other files even if one fails
+            }
+        }
+
+        return NextResponse.json({ message: "Media files deleted successfully" }, { status: 200 });
+    } catch (error: any) {
+        console.error("[DELETE /api/post/[id]/image] ERROR:", error);
+        return NextResponse.json({ message: "Failed to delete media files", error: String(error) }, { status: 500 });
+    }
+}

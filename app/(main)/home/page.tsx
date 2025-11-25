@@ -11,12 +11,14 @@ export default function Home() {
   const [tweets, setTweets] = useState<Post[] | null>(null);
 
   const fetchFeed = async (tab: 'foryou' | 'following') => {
+    console.log('[Home] fetchFeed called for tab:', tab);
     const params = new URLSearchParams();
     if (loggedUser) params.set("currentUser", loggedUser);
     if (tab === "following") params.set("filter", "following");
 
     const response = await fetch(`/api/post?${params.toString()}`);
     const data = await response.json();
+    console.log('[Home] fetchFeed received', data.length, 'tweets');
 
     // Filter tweets to include only those from followed users, the current user, and their retweets
     const filteredTweets = tab === "following"
@@ -27,6 +29,7 @@ export default function Home() {
         )
       : data; // For 'For you', show all tweets
 
+    console.log('[Home] fetchFeed setting', filteredTweets.length, 'tweets after filtering');
     setTweets(filteredTweets as Post[]);
   }
 
@@ -90,7 +93,10 @@ export default function Home() {
               key={`${tweet.tweetId}-${index}`}
               user={currentUser} tweet={tweet} findRoot
               onRetweetSuccess={() => fetchFeed(activeTab)}
-              onDeleteSuccess={() => fetchFeed(activeTab)}
+              onDeleteSuccess={() => {
+                console.log('[Home] onDeleteSuccess called, refreshing feed for tab:', activeTab);
+                fetchFeed(activeTab);
+              }}
             />
           ))}
         </div>

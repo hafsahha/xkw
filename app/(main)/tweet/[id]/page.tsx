@@ -58,21 +58,35 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   
   useEffect(() => {
     async function fetchTweet() {
-      const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
-      const data = await response.json();
-      
-      // Handle 404 or tweet deleted
-      if (!data || !data.author || response.status === 404) {
+      try {
+        const response = await fetch(`/api/post?id=${id}&currentUser=${loggedUser}`);
+        
+        // Handle 404 or tweet deleted
+        if (response.status === 404) {
+          console.log('[TweetPage] Tweet not found (404), redirecting to home');
+          window.location.href = '/home';
+          return;
+        }
+        
+        const data = await response.json();
+        
+        // Handle empty or invalid response
+        if (!data || !data.author) {
+          console.log('[TweetPage] Tweet data invalid, redirecting to home');
+          window.location.href = '/home';
+          return;
+        }
+        
+        setIsMyself(data.author.username === loggedUser);
+        setIsBookmarked(data.isBookmarked);
+        setIsRetweeted(data.isRetweeted);
+        setIsLiked(data.isLiked);
+        setTweetStats(data.stats as PostStats)
+        setTweet(data as Post);
+      } catch (error) {
+        console.error('[TweetPage] Error fetching tweet:', error);
         window.location.href = '/home';
-        return;
       }
-      
-      setIsMyself(data.author.username === loggedUser);
-      setIsBookmarked(data.isBookmarked);
-      setIsRetweeted(data.isRetweeted);
-      setIsLiked(data.isLiked);
-      setTweetStats(data.stats as PostStats)
-      setTweet(data as Post);
     }
     if (loggedUser) fetchTweet();
   }, [id, loggedUser]);
@@ -258,7 +272,16 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                       >
                       <Ellipsis className="h-4 w-4" />
                     </button>
-                    {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={() => window.location.href = '/home'} />}
+                    {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={() => {
+                      console.log('[TweetPage] Tweet deleted, going back to previous page');
+                      // Check if there's history to go back to
+                      if (window.history.length > 1) {
+                        window.history.back();
+                      } else {
+                        // Fallback to home if no history
+                        window.location.href = '/home';
+                      }
+                    }} />}
                   </div>
                 </div>
               </div>
