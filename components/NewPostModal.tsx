@@ -100,6 +100,13 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted, quo
     }
   };
 
+  const getMediaUrl = (url: string) => {
+    if (url.startsWith("/img/") || url.startsWith("/uploads/")) {
+      return url;
+    }
+    return `/img/${url}`;
+  };
+
   if (!isOpen || !mounted) return null;
   const modalContent = (
     <div
@@ -220,22 +227,20 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted, quo
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      {quoteTweet.media.length > 0 && (
-                        <div className={`${quoteTweet.media.length > 1 ? 'grid grid-cols-2 auto-rows-fr gap-0.5' : 'flex'} w-full max-w-xs aspect-square rounded-lg overflow-hidden`}>
-                          {quoteTweet.media.map((mediaUrl, idx) => (
-                            <div key={idx} className="relative aspect-square">
-                              <Image
-                                src={`/img/${mediaUrl}`} alt={`Media ${idx + 1}`}
-                                className="object-cover w-full h-full"
-                                fill
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
                       <p className={`text-gray-900 whitespace-pre-wrap text-sm ${quoteTweet.media.length > 0 ? 'line-clamp-3' : 'line-clamp-5'}`}>
                         {quoteTweet.content}
                       </p>
+                      {quoteTweet.media.length > 0 && (
+                        <div className={`${quoteTweet.media.length > 1 ? 'grid grid-cols-2 auto-rows-fr gap-0.5' : 'flex'} w-full h-50 rounded-lg overflow-hidden`}>
+                          {quoteTweet.media.map((mediaUrl, idx) => (
+                            <Image
+                              key={idx} src={getMediaUrl(mediaUrl)} alt={`Media ${idx + 1}`}
+                              width={160} height={160}
+                              className={`object-cover w-full h-full ${quoteTweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
