@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { ImageIcon, X } from "lucide-react";
 import { createPortal } from "react-dom";
-import { User } from "@/lib/types";
+import { User, Post } from "@/lib/types";
 import Image from "next/image";
+import Link from "next/link";
 
-export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: { isOpen: boolean; user: User | null; onClose: () => void; onTweetPosted?: () => void }) {
+export default function NewPostModal({ isOpen, user, onClose, onTweetPosted, quoteTweet }: { isOpen: boolean; user: User | null; onClose: () => void; onTweetPosted?: () => void; quoteTweet?: Post | null }) {
   const [content, setContent] = useState("");
   const [images, setImages] = useState<FileList | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -40,6 +41,19 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
     return uploadedMedia;
   };
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes}m`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || !user) {
@@ -61,7 +75,8 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
           username: user.username,
           content,
           media: uploadedMedia,
-          type: "Original",
+          type: quoteTweet ? "Quote" : "Original",
+          tweetRef: quoteTweet ? quoteTweet.tweetId : undefined,
         }),
       });
 
@@ -112,7 +127,9 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Create Post</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {quoteTweet ? "Quote Tweet" : "Create Post"}
+          </h2>
           <div className="w-9"></div> {/* Spacer for centering */}
         </div>
 
@@ -140,9 +157,9 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="What's happening?"
+                placeholder={quoteTweet ? "Add a comment!" : "What's happening?"}
                 className="w-full text-xl placeholder-gray-500 border-none outline-none resize-none bg-transparent"
-                rows={4}
+                rows={quoteTweet ? 3 : 4}
                 maxLength={maxCharacters}
                 autoFocus
               />
@@ -175,6 +192,51 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
                         </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quote Tweet Preview */}
+              {quoteTweet && (
+                <div className="mt-3 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="flex flex-col p-3 gap-1">
+                    <div className="flex space-x-2">
+                      <Link href={`/profile/${quoteTweet.author.username}`} className="w-6 h-6 flex-shrink-0">
+                        <Image src={`/img/${quoteTweet.author.avatar}`} alt={quoteTweet.author.name} className="w-full h-full rounded-full object-cover" width={24} height={24} />
+                      </Link>
+                      <div className="flex items-center space-x-1 min-w-0">
+                        <Link href={`/profile/${quoteTweet.author.username}`} className="flex items-center space-x-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer text-sm">
+                            {quoteTweet.author.name}
+                          </h3>
+                          <span className="text-gray-500 text-sm">
+                            @{quoteTweet.author.username}
+                          </span>
+                        </Link>
+                        <span className="text-gray-500">·</span>
+                        <time className="text-gray-500 text-sm">
+                          {formatTime(quoteTweet.createdAt)}
+                        </time>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {quoteTweet.media.length > 0 && (
+                        <div className={`${quoteTweet.media.length > 1 ? 'grid grid-cols-2 auto-rows-fr gap-0.5' : 'flex'} w-full max-w-xs aspect-square rounded-lg overflow-hidden`}>
+                          {quoteTweet.media.map((mediaUrl, idx) => (
+                            <div key={idx} className="relative aspect-square">
+                              <Image
+                                src={`/img/${mediaUrl}`} alt={`Media ${idx + 1}`}
+                                className="object-cover w-full h-full"
+                                fill
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <p className={`text-gray-900 whitespace-pre-wrap text-sm ${quoteTweet.media.length > 0 ? 'line-clamp-3' : 'line-clamp-5'}`}>
+                        {quoteTweet.content}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

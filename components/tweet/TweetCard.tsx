@@ -27,6 +27,7 @@ export default function TweetCard({
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
   const [isLoadingLike, setIsLoadingLike] = useState(false);
   const [quoteTweet, setQuoteTweet] = useState<Post | null>(null);
+  const [isQuoteTweet, setIsQuoteTweet] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -77,21 +78,25 @@ export default function TweetCard({
   const handleRetweet = async (type: 'rt' | 'qrt') => {
     if (isLoadingRetweet) return; // Prevent duplicate clicks
     
+    if (type === 'qrt') {
+      // For quote tweets, just open the modal
+      setIsQuoteTweet(true);
+      setIsNewPostOpen(true);
+      setIsLoadingRetweet(false);
+      return;
+    }
+    
+    // For regular retweets, toggle the retweet
     setIsRetweeted(!isRetweeted);
     setLocalStats(prev => ({ ...prev, retweets: isRetweeted ? prev.retweets - 1 : prev.retweets + 1 }));
     setIsLoadingRetweet(true);
     
     try {
-      let response;
-      if (type === 'rt') {
-        response = await fetch('/api/retweets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
-        });
-      } else {
-        setIsNewPostOpen(true)
-      }
+      const response = await fetch('/api/retweets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
+      });
 
       if (response && response.ok && onRetweetSuccess) {
         onRetweetSuccess();
@@ -378,11 +383,17 @@ export default function TweetCard({
       {loggedUser && (
         <NewPostModal 
           user={user}
-          isOpen={isNewPostOpen} onClose={() => setIsNewPostOpen(false)} 
+          isOpen={isNewPostOpen} 
+          onClose={() => {
+            setIsNewPostOpen(false);
+            setIsQuoteTweet(false);
+          }}
           onTweetPosted={() => {
             setIsNewPostOpen(false);
+            setIsQuoteTweet(false);
             if (typeof window !== "undefined") window.location.reload();
           }}
+          quoteTweet={isQuoteTweet ? tweet : null}
         />
       )}
     </>
