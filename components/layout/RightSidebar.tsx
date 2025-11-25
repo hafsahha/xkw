@@ -4,11 +4,43 @@ import { TrendingTopic } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+interface SuggestedUser {
+  _id: string;
+  name: string;
+  username: string;
+  bio?: string;
+  media?: {
+    avatar: string;
+    banner: string;
+  };
+  stats: {
+    followers: number;
+    following: number;
+    tweetCount: number;
+  };
+  isFollowing: boolean;
+}
+
 export default function RightSidebar() {
   const router = useRouter();
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Get current user from localStorage (you might have a different way to get this)
+  const getCurrentUser = () => {
+    if (typeof window !== 'undefined') {
+      // Try to get from localStorage, if not available, check if there are any users in your DB
+      const stored = localStorage.getItem('currentUser');
+      if (stored) return stored;
+      
+      // For now, let's use a test user - you might want to get this from auth context
+      return 'test_user';
+    }
+    return 'test_user';
+  };
 
   useEffect(() => {
     // Fetch data from the /api/trending route
@@ -27,7 +59,35 @@ export default function RightSidebar() {
       }
     }
 
+    // Fetch suggested users
+    async function fetchSuggestedUsers() {
+      try {
+        const currentUser = getCurrentUser();
+        console.log("Fetching suggestions for user:", currentUser);
+        
+        const response = await fetch(`/api/user?suggestions=true&currentUser=${currentUser}&limit=3`);
+        console.log("API response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API error response:", errorText);
+          throw new Error(`Failed to fetch suggested users: ${response.status} ${errorText}`);
+        }
+        
+        const users = await response.json();
+        console.log("Fetched users:", users);
+        setSuggestedUsers(users);
+      } catch (error) {
+        console.error("Error fetching suggested users:", error);
+        // Fallback to empty array on error
+        setSuggestedUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+
     fetchTrendingTopics();
+    fetchSuggestedUsers();
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -37,29 +97,43 @@ export default function RightSidebar() {
     }
   };
 
-  const suggestedUsers = [
-    {
-      id: 1,
-      name: "John Developer",
-      username: "@johndev",
-      avatar: "/placeholder-avatar.png",
-      isFollowing: false,
-    },
-    {
-      id: 2,
-      name: "Sarah Designer",
-      username: "@sarahdesign",
-      avatar: "/placeholder-avatar.png",
-      isFollowing: false,
-    },
-    {
-      id: 3,
-      name: "Tech News",
-      username: "@technews",
-      avatar: "/placeholder-avatar.png",
-      isFollowing: false,
-    },
-  ];
+  // Handle follow/unfollow functionality
+  const handleFollow = async (userId: string, username: string) => {
+    try {
+      const currentUser = getCurrentUser();
+      console.log('Following user:', { currentUser, username });
+      
+      const response = await fetch('/api/follows', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          followerUsername: currentUser,
+          followingUsername: username
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Follow response:', data);
+        
+        // Update the local state to reflect the follow status change
+        setSuggestedUsers(prev => 
+          prev.map(user => 
+            user._id === userId 
+              ? { ...user, isFollowing: data.isFollowing }
+              : user
+          )
+        );
+      } else {
+        const errorData = await response.json();
+        console.error('Follow API error:', errorData);
+      }
+    } catch (error) {
+      console.error('Error following user:', error);
+    }
+  };
 
   return (
     <div className="w-80 hidden lg:block p-4 space-y-6">
@@ -111,33 +185,85 @@ export default function RightSidebar() {
             ))}
           </div>
         )}
-        <button className="text-blue-500 hover:underline mt-3 text-sm">
-          Show more
-        </button>
       </div>
 
       {/* Suggested Users */}
       <div className="bg-gray-50 rounded-2xl p-4">
         <h3 className="text-xl font-bold mb-4 text-black">Who to follow</h3>
-        <div className="space-y-4">
-          {suggestedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                <div>
-                  <div className="font-semibold text-sm text-black">{user.name}</div>
-                  <div className="text-gray-500 text-sm">{user.username}</div>
+        {loadingUsers ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between animate-pulse">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
+                  <div className="space-y-1">
+                    <div className="h-4 bg-gray-300 rounded w-20"></div>
+                    <div className="h-3 bg-gray-300 rounded w-16"></div>
+                  </div>
                 </div>
+                <div className="h-8 bg-gray-300 rounded-full w-16"></div>
               </div>
-              <button className="bg-black text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-gray-800 transition-colors">
-                Follow
-              </button>
-            </div>
-          ))}
-        </div>
-        <button className="text-pink-500 hover:underline mt-3 text-sm">
-          Show more
-        </button>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {suggestedUsers.length > 0 ? (
+              suggestedUsers.map((user) => (
+                <div key={user._id} className="flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <button 
+                      onClick={() => router.push(`/profile/${user.username}`)}
+                      className="flex-shrink-0"
+                    >
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center">
+                        {user.media?.avatar && user.media.avatar !== 'default_avatar.png' ? (
+                          <img 
+                            src={`/img/${user.media.avatar}`}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to initials if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.parentElement!.innerHTML = `<span class="text-gray-600 text-sm font-semibold">${user.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>`;
+                            }}
+                          />
+                        ) : (
+                          <span className="text-gray-600 text-sm font-semibold">
+                            {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <button 
+                        onClick={() => router.push(`/profile/${user.username}`)}
+                        className="block text-left w-full"
+                      >
+                        <p className="font-semibold text-sm text-black hover:underline truncate">{user.name}</p>
+                        <p className="text-gray-500 text-sm">@{user.username}</p>
+                      </button>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleFollow(user._id, user.username)}
+                    className={`ml-3 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                      user.isFollowing 
+                        ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                        : 'bg-black text-white hover:bg-gray-800'
+                    }`}
+                  >
+                    {user.isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500 text-sm text-center py-4">
+                No new users to suggest
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer Links */}
