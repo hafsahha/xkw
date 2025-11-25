@@ -20,6 +20,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   const [isLiked, setIsLiked] = useState<boolean | null>(null);
   const [tweetParents, setTweetParents] = useState<Post[] | null>(null);
   const [tweetStats, setTweetStats] = useState<PostStats | null>(null)
+  const [quoteTweet, setQuoteTweet] = useState<Post | null>(null);
   const [tweet, setTweet] = useState<Post | null>(null);
   const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
@@ -77,14 +78,25 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
   }, [id, loggedUser]);
 
   useEffect(() => {
-      async function findRootTweet() {
-        const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet!.tweetId, findRoot: 'true'});
-        const response = await fetch(`/api/post?${params.toString()}`);
-        const data = await response.json();
-        setTweetParents(data as Post[]);
-      }
-      if (loggedUser && tweet && tweet.type === "Reply") findRootTweet();
-    }, [tweet, loggedUser]);
+    async function findRootTweet() {
+      const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet!.tweetId, findRoot: 'true'});
+      const response = await fetch(`/api/post?${params.toString()}`);
+      const data = await response.json();
+      setTweetParents(data as Post[]);
+    }
+    if (loggedUser && tweet && tweet.type === "Reply") findRootTweet();
+  }, [tweet, loggedUser]);
+
+  useEffect(() => {
+    async function fetchQuotedTweet() {
+      const params = new URLSearchParams({currentUser: String(loggedUser), id: tweet!.tweetId, quote: 'true'});
+      const response = await fetch(`/api/post?${params.toString()}`);
+      const data = await response.json();
+      setQuoteTweet(data as Post);
+      console.log("Quoted tweet fetched:", data);
+    }
+    if (loggedUser && tweet && tweet.type === "Quote") fetchQuotedTweet();
+  }, [tweet, loggedUser]);
 
   const handleReply = async () => {
     if (!replyText.trim() || !loggedUser || !tweet) return;
@@ -173,6 +185,19 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     } finally { setIsLoadingBookmark(false) }
   };
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes}m`;
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -246,6 +271,73 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                         />
                       </Link>
                     ))}
+                  </div>
+                )}
+                {quoteTweet && (
+                  <div
+                  onClick={(e) => { e.stopPropagation(); window.location.href = `/tweet/${quoteTweet.tweetId}`; }}
+                    className="mt-2 bg-white border border-gray-200 hover:bg-gray-50/50 transition-colors cursor-pointer rounded-xl overflow-hidden"
+                  >
+                    <div className="flex flex-col p-2 gap-1">
+                      <div className="flex space-x-1">
+                        <Link href={`/profile/${quoteTweet.author.username}`} className="w-6 h-6 flex-shrink-0">
+                          <Image src={`/img/${quoteTweet.author.avatar}`} alt={quoteTweet.author.name} className="w-full h-full rounded-full object-cover" width={24} height={24} />
+                        </Link>
+                        <div className="flex items-center space-x-1">
+                          <Link href={`/profile/${quoteTweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                            {quoteTweet.author.name}
+                            </h3>
+                            <span className="text-gray-500">
+                              @{quoteTweet.author.username}
+                            </span>
+                          </Link>
+                          <span className="text-gray-500">·</span>
+                          <time className="text-gray-500 text-sm">
+                            {formatTime(quoteTweet.createdAt)}
+                          </time>
+                        </div>
+                      </div>
+                      <div className={`flex ${tweet.media.length > 0 ? 'gap-2' : 'flex-col gap-1'} mt-1`}>
+                        {quoteTweet.media.length > 0 && tweet.media.length > 0 && (
+                          <div className={`${quoteTweet.media.length > 1 ? `grid grid-cols-2 auto-rows-fr gap-0.25` : 'flex'} w-30 aspect-square flex-shrink-0 rounded-lg overflow-hidden`}>
+                            {quoteTweet.media.map((mediaUrl, idx) => (
+                              <Link
+                                key={idx} onClick={(e) => e.stopPropagation()}
+                                href={`/tweet/${quoteTweet.tweetId}/image/${idx + 1}`}
+                                className={`${quoteTweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                              >
+                                <Image
+                                  src={`/img/${mediaUrl}`} alt={`Media ${idx + 1}`}
+                                  width={120} height={120}
+                                  className="object-cover w-full h-full"
+                                />
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                        <p className={`text-gray-900 whitespace-pre-wrap ${quoteTweet.media.length > 0 ? 'line-clamp-5' : ''}`}>
+                          {quoteTweet.content}
+                        </p>
+                      </div>
+                    </div>
+                    {quoteTweet.media.length > 0 && tweet.media.length === 0 && (
+                      <div className={`${quoteTweet.media.length > 1 ? `grid grid-cols-2 auto-rows-fr gap-1` : 'flex w-full'} h-80 overflow-hidden items-center`}>
+                        {quoteTweet.media.map((mediaUrl, idx) => (
+                          <Link
+                            key={idx} onClick={(e) => e.stopPropagation()}
+                            href={`/tweet/${quoteTweet.tweetId}/image/${idx + 1}`}
+                            className={`h-full w-full ${quoteTweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                          >
+                            <Image
+                              src={`/img/${mediaUrl}`} alt={`Media ${idx + 1}`}
+                              width={quoteTweet.media.length > 1 ? 160 : 320} height={quoteTweet.media.length > 1 ? 160 : 320}
+                              className="object-cover w-full h-full"
+                            />
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
