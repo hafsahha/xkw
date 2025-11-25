@@ -152,6 +152,13 @@ export default function PhotoModal({ params }: { params: Promise<{ id: string, i
     return num.toString();
   };
 
+  const getMediaUrl = (url: string) => {
+    if (url.startsWith("/img/") || url.startsWith("/uploads/")) {
+      return url;
+    }
+    return `/img/${url}`; // Default to /img/ if no prefix is present
+  };
+
   if (!photo || !tweet || !tweetStats) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -179,7 +186,7 @@ export default function PhotoModal({ params }: { params: Promise<{ id: string, i
         <div className="flex flex-col w-full h-screen overflow-hidden">
           <Image
             onClick={(e) => e.stopPropagation()}
-            src={`/img/${photo}`} alt="Tweet image"
+            src={getMediaUrl(photo)} alt="Tweet image"
             width={1200} height={1200}
             className="w-auto h-auto max-w-full max-h-[90vh] m-auto object-contain"
           />

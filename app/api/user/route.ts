@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
             likeCount: 0,
             bookmarkCount: 0,
             retweetCount: 0,
+            createdAt: new Date(),
         };
         // Insert the new user into the database
         const result = await usersCollection.insertOne(newUser);

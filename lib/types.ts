@@ -10,6 +10,8 @@ export interface User {
     password: string;
     name: string;
     bio?: string;
+    location?: string;
+    website?: string;
     media: {
         avatar?: string;
         banner?: string;
