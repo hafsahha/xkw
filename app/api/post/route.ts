@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
                 
                 // Combine & sort all posts, using retweetedAt for retweets when available
                 detailedUserTweets = [...detailedUserTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
-                    const timeOf = (t) => {
+                    const timeOf = (t: any) => {
                         if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
                         else return new Date(t.createdAt).getTime();
                     };
@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
         
         // Gabung & sort (now without duplicates)
         detailedAllTweets = [...detailedAllTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
-            const timeOf = (t) => {
+            const timeOf = (t: any) => {
                 if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
                 else return new Date(t.createdAt).getTime();
             };
@@ -185,48 +185,73 @@ export async function POST(req: NextRequest) {
     const userCollection = database?.collection("users");
 
     if (tweetCollection && userCollection) {
-        const body = await req.json();
-        const { username, content, media, tweetRef, type } = body;
-        if (!username || !content) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
-
-        const authorObject = await userCollection.findOne({ username: username });
-        const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
-        const newTweet = {
-            author: {
-                name: authorObject?.name,
-                username: authorObject?.username,
-                avatar: authorObject?.media.avatar,
-            },
-            content: content.trim(),
-            media: media || [],
-            parentTweetId: refObject?._id,
-            type: type || "Original",
-            stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
-            createdAt: new Date()
-        };
-        const result = await tweetCollection.insertOne(newTweet);
-
-        const id = String(result.insertedId);
-        const secret = process.env.TWEET_SECRET || "default_secret";
-        const raw = createHmac("sha256", secret).update(id).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-        const tweetId = raw.slice(0, 24);
-
-        if (refObject) {
-            switch (type) {
-                case "Reply":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.replies": 1 } });
-                    break;
-                case "Retweet":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.retweets": 1 } });
-                    break;
-                case "Quote":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.quotes": 1 } });
-                    break;
+        try {
+            const body = await req.json();
+            const { username, content, media, tweetRef, type } = body;
+            
+            console.log("[POST /api/post] Attempting to create tweet:", { username, content: content.substring(0, 50), type });
+            
+            if (!username || !content) {
+                console.error("[POST /api/post] Missing required fields:", { username, content });
+                return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
             }
+
+            const authorObject = await userCollection.findOne({ username: username });
+            if (!authorObject) {
+                console.error("[POST /api/post] Author not found:", username);
+                return NextResponse.json({ message: "Author not found" }, { status: 404 });
+            }
+            
+            const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
+            const newTweet = {
+                author: {
+                    name: authorObject?.name,
+                    username: authorObject?.username,
+                    avatar: authorObject?.media?.avatar || "default_avatar.png",
+                },
+                content: content.trim(),
+                media: media || [],
+                parentTweetId: refObject?._id,
+                type: type || "Original",
+                stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
+                createdAt: new Date()
+            };
+            
+            console.log("[POST /api/post] Creating new tweet object with author:", authorObject.username);
+            const result = await tweetCollection.insertOne(newTweet);
+
+            const id = String(result.insertedId);
+            const secret = process.env.TWEET_SECRET || "default_secret";
+            const raw = createHmac("sha256", secret).update(id).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+            const tweetId = raw.slice(0, 24);
+
+            if (refObject) {
+                switch (type) {
+                    case "Reply":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.replies": 1 } });
+                        break;
+                    case "Retweet":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.retweets": 1 } });
+                        break;
+                    case "Quote":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.quotes": 1 } });
+                        break;
+                }
+            }
+            
+            // Update user tweetCount (not stats.tweetCount)
+            await userCollection.updateOne({ username: username }, { $inc: { tweetCount: 1 } });
+            await tweetCollection.updateOne({ _id: result.insertedId }, { $set: { tweetId: tweetId } });
+            
+            console.log("[POST /api/post] ✅ Tweet created successfully:", { tweetId, author: username });
+            return NextResponse.json({ message: "Tweet created", tweetId }, { status: 201 });
+        } catch (error) {
+            console.error("[POST /api/post] ERROR:", error);
+            return NextResponse.json(
+                { message: "Failed to create tweet", error: String(error) },
+                { status: 500 }
+            );
         }
-        await userCollection.updateOne({ username: username }, { $inc: { "stats.tweetCount": 1 } });
-        await tweetCollection.updateOne({ _id: result.insertedId }, { $set: { tweetId: tweetId } });
-        return NextResponse.json({ message: "Tweet created", tweetId }, { status: 201 });
     }
     return NextResponse.json({ message: "Failed to create tweet" }, { status: 500 });
 }

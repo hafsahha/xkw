@@ -19,12 +19,13 @@ export async function GET(req: NextRequest) {
                 // Ensure followers and following fields are included with default values
                 serializedUser.followers = serializedUser.followers || [];
                 serializedUser.following = serializedUser.following || [];
+                serializedUser.media = serializedUser.media || { avatar: "default_avatar.png", banner: "default_banner.png" };
 
                 // Dynamically calculate stats
                 serializedUser.stats = {
                     followers: serializedUser.followers.length,
                     following: serializedUser.following.length,
-                    tweetCount: serializedUser.stats?.tweetCount || 0,
+                    tweetCount: serializedUser.tweetCount || 0,
                 };
 
                 return NextResponse.json(serializedUser);
@@ -36,7 +37,9 @@ export async function GET(req: NextRequest) {
             ...rest,
             followers: rest.followers || [],
             following: rest.following || [],
+            media: rest.media || { avatar: "default_avatar.png", banner: "default_banner.png" },
         }));
+        console.log("[API] Fetching all users, count:", serializedUsers.length);
         return NextResponse.json(serializedUsers);
     }
 
@@ -64,11 +67,20 @@ export async function POST(req: NextRequest) {
             password : hashedPassword,
             name: body.name || "",
             bio: body.bio || "",
+            media: { avatar: "default_avatar.png", banner: "default_banner.png" },
+            followers: [],
+            following: [],
+            tweetCount: 0,
+            likeCount: 0,
+            bookmarkCount: 0,
+            retweetCount: 0,
+            createdAt: new Date(),
         };
         // Insert the new user into the database
         const result = await usersCollection.insertOne(newUser);
         if (result.insertedId) {
             const { password, ...userWithoutPassword } = newUser;
+            console.log("[API] New user created:", username);
             return NextResponse.json(userWithoutPassword, { status: 201 });
         } else {
             return NextResponse.json({ message: "Failed to create user" }, { status: 500 });
