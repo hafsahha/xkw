@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { createNotification } from "@/app/api/notifications/route";
 
 export async function GET(req: NextRequest) {
     try {
@@ -166,19 +167,11 @@ export async function POST(req: NextRequest) {
                 usersCollection.updateOne({ _id: following._id }, { $inc: { "stats.followers": 1 } })
             ]);
             
-            // Create notification
-            await notificationsCollection.insertOne({
-                receiverId: following._id,
-                actor: {
-                    userId: follower._id,
-                    username: follower.username,
-                    name: follower.name,
-                    avatar: follower.media?.profileImage || "/placeholder-avatar.png"
-                },
+            // Create notification using the new system
+            await createNotification({
                 type: "follow",
-                tweetId: null,
-                isRead: false,
-                createdAt: new Date()
+                recipientUsername: following.username,
+                actorUsername: follower.username
             });
             
             return NextResponse.json({ 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { createNotification } from "@/app/api/notifications/route";
 
 // Get tweet likers (users who liked a specific tweet)
 export async function GET(req: NextRequest) {
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": -1 } });
             return NextResponse.json({ message: "Post unliked successfully" }, { status: 200 });
         } else {
-            // If like doesn't exist, create itw
+            // If like doesn't exist, create it
             const newLike = {
                 tweetId: tweetObject._id,
                 likedBy: userObject._id,
@@ -59,6 +60,17 @@ export async function POST(req: NextRequest) {
             };
             await likeCollection.insertOne(newLike);
             await tweetCollection.updateOne({ _id: tweetObject._id }, { $inc: { "stats.likes": 1 } });
+
+            // Create notification for the tweet author
+            if (tweetObject.author.username !== username) {
+                await createNotification({
+                    type: "like",
+                    recipientUsername: tweetObject.author.username,
+                    actorUsername: username,
+                    tweetId: tweetId
+                });
+            }
+
             return NextResponse.json({ message: "Post liked successfully" }, { status: 201 });
         }
     }

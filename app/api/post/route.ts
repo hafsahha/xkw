@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import db from "@/lib/db";
 import { promises as fs } from "fs";
 import path from "path";
+import { createNotification } from "@/app/api/notifications/route";
 
 const uploadDir = path.join(process.cwd(), "public", "uploads");
 
@@ -233,12 +234,32 @@ export async function POST(req: NextRequest) {
                 switch (type) {
                     case "Reply":
                         await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.replies": 1 } });
+                        // Create notification for reply
+                        if (refObject.author.username !== username) {
+                            await createNotification({
+                                type: "reply",
+                                recipientUsername: refObject.author.username,
+                                actorUsername: username,
+                                tweetId: tweetRef,
+                                message: content.trim()
+                            });
+                        }
                         break;
                     case "Retweet":
                         await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.retweets": 1 } });
                         break;
                     case "Quote":
                         await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.quotes": 1 } });
+                        // Create notification for quote tweet
+                        if (refObject.author.username !== username) {
+                            await createNotification({
+                                type: "quote",
+                                recipientUsername: refObject.author.username,
+                                actorUsername: username,
+                                tweetId: tweetRef,
+                                message: content.trim()
+                            });
+                        }
                         break;
                 }
             }
