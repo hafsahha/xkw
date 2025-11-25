@@ -124,12 +124,12 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
               {user ? (
                 <Image
                   src={`/img/${user.media.avatar ?? "default_avatar.png"}`} alt={user.name}
-                  width={48} height={48}
-                  className="w-12 h-12 rounded-full"
+                  width={40} height={40}
+                  className="w-10 h-10 rounded-full"
                 />
               ) : (
                 <div
-                  className="w-12 h-12 bg-gray-300 rounded-full"
+                  className="w-10 h-10 bg-gray-300 rounded-full"
                   suppressHydrationWarning={true}
                 ></div>
               )}
