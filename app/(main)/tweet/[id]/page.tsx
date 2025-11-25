@@ -197,8 +197,8 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
       {/* Main Tweet */}
       {tweet && tweetStats ? (
         <>
-          {tweetParents && tweetParents.map((parent, idx) => (
-            <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} />
+          {tweetParents && currentUser && tweetParents.map((parent, idx) => (
+            <TweetCard key={parent.tweetId} user={currentUser} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} />
           ))}
           <article className={` ${tweetParents ? 'pt-0' : ''} p-4 pb-2 border-b border-gray-200`}>
             <div className="flex flex-col">
@@ -393,9 +393,9 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Replies */}
       <div className="divide-y divide-gray-200">
-        {tweet ? (
+        {tweet && currentUser ? (
           tweet!.replies && tweet!.replies.length > 0 ? (
-            tweet!.replies.map((reply, _) => <TweetCard key={_} tweet={reply} />)
+            tweet!.replies.map((reply, _) => <TweetCard key={_} user={currentUser} tweet={reply} />)
           ) : <p>No replies yet.</p>
         ) : (
           <div className="flex mt-4 justify-center">

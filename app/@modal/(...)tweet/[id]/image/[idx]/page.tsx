@@ -351,9 +351,9 @@ export default function PhotoModal({ params }: { params: Promise<{ id: string, i
 
           {/* Replies */}
           <div className="divide-y divide-gray-200">
-            {tweet ? (
+            {tweet && currentUser ? (
               tweet!.replies && tweet!.replies.length > 0 ? (
-                tweet!.replies.map((reply, _) => <TweetCard key={_} tweet={reply} sidebarMode />)
+                tweet!.replies.map((reply, _) => <TweetCard key={_} user={currentUser} tweet={reply} sidebarMode />)
               ) : (
                 <p className="text-center text-gray-500 py-4">No replies yet.</p>
               )

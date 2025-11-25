@@ -83,12 +83,12 @@ export default function Home() {
       {currentUser ? <TweetComposer user={currentUser} onTweetPosted={() => fetchFeed(activeTab)} /> : <TweetComposer loading />}
 
       {/* Tweet Feed */}
-      {tweets ? (
+      {tweets && currentUser ? (
         <div className="">
           {tweets!.map((tweet, index) => (
             <TweetCard
               key={`${tweet.tweetId}-${index}`}
-              tweet={tweet} findRoot
+              user={currentUser} tweet={tweet} findRoot
               onRetweetSuccess={() => fetchFeed(activeTab)}
               onDeleteSuccess={() => fetchFeed(activeTab)}
             />

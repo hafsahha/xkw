@@ -1,11 +1,12 @@
 "use client";
-import { Calendar, ImageIcon, MapPin, Smile } from "lucide-react";
+import { Calendar, ImageIcon, MapPin, Smile, X } from "lucide-react";
 import { useState } from "react";
 import { User } from "@/lib/types";
 import Image from "next/image";
 
 export default function TweetComposer({ user, loading, onTweetPosted }: { user?: User, loading?: boolean, onTweetPosted?: () => void }) {
   const [tweetText, setTweetText] = useState("");
+  const [images, setImages] = useState<FileList | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const maxLength = 280;
@@ -22,21 +23,19 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
         body: JSON.stringify({
           username: user.username,
           content: tweetText,
-          media: [],
+          media: images ? Array.from(images).map((file) => file.name) : [],
           type: "Original"
         })
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Tweet posted:", data);
+        await response.json();
         setTweetText("");
+        setImages(null);
         setIsExpanded(false);
         
         // Callback untuk refresh feed
-        if (onTweetPosted) {
-          onTweetPosted();
-        }
+        if (onTweetPosted) onTweetPosted();
       } else {
         alert("Gagal posting tweet");
       }
@@ -91,33 +90,67 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
               rows={isExpanded ? 3 : 1}
               maxLength={maxLength}
             />
+
+            {/* Image Preview */}
+            {images && images.length > 0 && (
+              <div className="mt-3" suppressHydrationWarning={true}>
+                <div
+                  className="grid grid-cols-2 gap-2 max-w-md"
+                  suppressHydrationWarning={true}
+                >
+                  {Array.from(images).map((file, index) => (
+                    <div key={index} className="relative">
+                      <Image
+                        src={URL.createObjectURL(file)} alt={`Upload ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                        width={180} height={128}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFiles = Array.from(images).filter((_, i) => i !== index);
+                          const dt = new DataTransfer();
+                          newFiles.forEach((file) => dt.items.add(file));
+                          setImages(dt.files);
+                        }}
+                        className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 hover:bg-black/90"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {isExpanded && (
               <>
                 {/* Options */}
                 <div className="flex items-center justify-between border-t border-gray-200 pt-2">
                   <div className="flex space-x-4">
+                    <label className="cursor-pointer hover:bg-gray-100 p-2 rounded-full transition-colors">
+                      <input
+                        onChange={(e) => setImages(e.target.files)}
+                        type="file" accept="image/*" multiple
+                        className="hidden"
+                      />
+                      <ImageIcon className="w-5 h-5 text-pink-500" />
+                    </label>
                     <button
                       type="button"
-                      className="text-pink-500 hover:bg-pink-50 p-2 rounded-full transition-colors"
-                    >
-                      <ImageIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="text-pink-500 hover:bg-pink-50 p-2 rounded-full transition-colors"
+                      className="text-pink-500 opacity-50 p-2 rounded-full transition-colors"
                     >
                       <Smile className="h-5 w-5" />
                     </button>
                     <button
                       type="button"
-                      className="text-pink-500 hover:bg-pink-50 p-2 rounded-full transition-colors"
+                      className="text-pink-500 opacity-50 p-2 rounded-full transition-colors"
                     >
                       <Calendar className="h-5 w-5" />
                     </button>
                     <button
                       type="button"
-                      className="text-pink-500 hover:bg-pink-50 p-2 rounded-full transition-colors"
+                      className="text-pink-500 opacity-50 p-2 rounded-full transition-colors"
                     >
                       <MapPin className="h-5 w-5" />
                     </button>

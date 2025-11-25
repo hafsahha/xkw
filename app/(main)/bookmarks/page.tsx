@@ -2,55 +2,40 @@
 
 import { useEffect, useState } from "react";
 import TweetCard from "@/components/tweet/TweetCard";
-
-// Define the type for a tweet
-interface Tweet {
-  _id: string;
-  author: {
-    name: string;
-    username: string;
-  };
-  createdAt: string;
-  content: string;
-  stats: {
-    replies: number;
-    retweets: number;
-    likes: number;
-  };
-}
+import { Post, User } from "@/lib/types";
 
 export default function BookmarksPage() {
-  const [bookmarkedTweets, setBookmarkedTweets] = useState<Tweet[]>([]);
+  const [bookmarkedTweets, setBookmarkedTweets] = useState<Post[]>([]);
+  const [loggedUser, setLoggedUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch the logged-in user's username from localStorage
     const storedUser = localStorage.getItem("loggedUser");
-    setCurrentUser(storedUser);
+    const t = setTimeout(() => setLoggedUser(storedUser), 0);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    async function fetchUser(username: string) {
+      const response = await fetch(`/api/user?username=${username}`);
+      const data = await response.json();
+      setCurrentUser(data as User);
+    }
+    if (loggedUser) fetchUser(loggedUser);
+  }, [loggedUser]);
 
-    const fetchBookmarks = async () => {
+  useEffect(() => {
+    async function fetchBookmarks(username: string) {
       try {
-        const response = await fetch(`/api/bookmarks?username=${currentUser}`);
-        if (response.ok) {
-          const data = await response.json();
-          setBookmarkedTweets(data);
-        } else {
-          console.error("Failed to fetch bookmarks");
-        }
-      } catch (error) {
-        console.error("Error fetching bookmarks:", error);
-      } finally {
-        setLoading(false);
-      }
+        const params = new URLSearchParams({ username, currentUser: username, bookmarkedOnly: "true" });
+        const response = await fetch(`/api/post?${params.toString()}`);
+        const data = await response.json();
+        if (response.ok) setBookmarkedTweets(data);
+      } finally { setLoading(false) }
     };
-
-    fetchBookmarks();
-  }, [currentUser]);
+    if (loggedUser) fetchBookmarks(loggedUser);
+  }, [loggedUser]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -82,7 +67,7 @@ export default function BookmarksPage() {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold text-black">Bookmarks</h1>
         </div>
-        <p className="text-sm text-gray-500 mt-1">@{currentUser}</p>
+        <p className="text-sm text-gray-500 mt-1">@{loggedUser}</p>
       </div>
 
       {/* Empty State or Bookmarks */}
@@ -101,16 +86,7 @@ export default function BookmarksPage() {
         </div>
       ) : (
         <div className="divide-y divide-gray-200">
-          {bookmarkedTweets.map((tweet) => (
-            <TweetCard
-              key={tweet._id}
-              tweet={{
-                ...tweet,
-                isLiked: tweet.stats.likes > 0, // Ensure isLiked state is passed
-                isBookmarked: true, // Since it's in bookmarks, set isBookmarked to true
-              }}
-            />
-          ))}
+          {currentUser && bookmarkedTweets.map((tweet, _) => <TweetCard key={_} user={currentUser} tweet={tweet} /> )}
         </div>
       )}
     </div>

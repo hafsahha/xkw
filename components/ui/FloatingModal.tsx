@@ -1,25 +1,39 @@
 'use client'
-import { Ban, Flag, Frown, Trash } from "lucide-react"
+import { Ban, Flag, Frown, PencilLine, Repeat2, Trash } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Post, User } from "@/lib/types"
 import Image from "next/image"
 import DeleteConfirmation from "./DeleteConfirmation"
 
-export default function FloatingModal({ tweet, tweetId, type, stat, onClose, onDeleteSuccess }: { tweet?: Post, tweetId?: string, type?: string, stat?: 'like' | 'retweets' | 'quotes', onClose?: () => void, onDeleteSuccess?: () => void }) {
+export default function FloatingModal({ tweet, tweetId, type, stat, onSelect, onClose, onDeleteSuccess }: { tweet?: Post, tweetId?: string, type?: string, stat?: 'like' | 'retweets' | 'quotes', onSelect?: (type: 'rt' | 'qrt') => void, onClose?: () => void, onDeleteSuccess?: () => void }) {
   const [currentUser, setCurrentUser] = useState<boolean | null>(null)
   const [tweetObj, setTweetObj] = useState<Post | null>(null)
   const [userList, setUserList] = useState<User[] | null>(null)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
-    if (onClose) {
-      const handleEsc = (event: KeyboardEvent) => {
-        if (event.key === "Escape") onClose();
-      };
-      window.addEventListener("keydown", handleEsc);
-      return () => window.removeEventListener("keydown", handleEsc);
-    }
-  }, [onClose]);
+    if (!onClose) return;
+
+    const handleEsc = (event: KeyboardEvent) => { if (event.key === "Escape") onClose() };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const modalEl = document.querySelector('.floating-modal');
+      if (!modalEl) return;
+      const target = event.target as Node | null;
+      if (target && !modalEl.contains(target)) {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose, type]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -77,9 +91,9 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onClose, onD
     { icon: Flag, text: "Report tweet" }
   ]
 
-  if (type === 'tweetOptions') return (
+  if (type === 'tweetOptions' && currentUser !== null) return (
     <>
-      <div className="absolute top-0 right-0 w-60 bg-white text-gray-900 rounded-lg shadow z-9">
+      <div className="floating-modal absolute top-0 right-0 w-60 bg-white text-gray-900 rounded-lg shadow z-9">
         {currentUser ? (
           <button
             onClick={(e) => { e.stopPropagation(); setIsDeleteConfirmOpen(true); }}
@@ -103,6 +117,19 @@ export default function FloatingModal({ tweet, tweetId, type, stat, onClose, onD
         onCancel={() => setIsDeleteConfirmOpen(false)}
       />
     </>
+  )
+
+  if (type === 'retweetOptions' && onSelect && onClose) return (
+    <div className="floating-modal absolute top-0 right-0 w-37 bg-white text-gray-900 rounded-lg shadow z-9">
+      <div className="flex px-4 py-3 font-semibold items-center gap-2" onClick={(e) => { e.stopPropagation(); onSelect('rt'); onClose(); }}>
+        <Repeat2 className="w-5 h-5 flex-shrink-0" />
+        Retweet
+      </div>
+      <div className="flex px-4 py-3 font-semibold items-center gap-2" onClick={(e) => { e.stopPropagation(); onSelect('qrt'); onClose(); }}>
+        <PencilLine className="w-5 h-5 flex-shrink-0" />
+        Quote Tweet
+      </div>
+    </div>
   )
 
   if (type === 'statsList' && tweetObj && userList) return (

@@ -1,17 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ImageIcon, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { User } from "@/lib/types";
 import Image from "next/image";
 
-interface NewPostModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  user: User | null; // Add user prop to pass user data
-}
-
-export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProps) {
+export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: { isOpen: boolean; user: User | null; onClose: () => void; onTweetPosted?: () => void }) {
   const [content, setContent] = useState("");
   const [images, setImages] = useState<FileList | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -20,9 +15,7 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
   const maxCharacters = 280;
   const remainingCharacters = maxCharacters - content.length;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +38,12 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Tweet posted successfully:", data);
+        await response.json();
         setContent("");
         setImages(null);
         onClose();
+
+        if (onTweetPosted) onTweetPosted();
       } else {
         const errorData = await response.json();
         console.error("Failed to post tweet:", errorData);
@@ -63,12 +57,7 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setImages(e.target.files);
-  };
-
   if (!isOpen || !mounted) return null;
-
   const modalContent = (
     <div
       className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4"
@@ -93,19 +82,7 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <svg
-              className="w-5 h-5 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X className="w-5 h-5 text-gray-600" />
           </button>
           <h2 className="text-lg font-semibold text-gray-900">Create Post</h2>
           <div className="w-9"></div> {/* Spacer for centering */}
@@ -152,36 +129,21 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
                     {Array.from(images).map((file, index) => (
                       <div key={index} className="relative">
                         <Image
-                          src={URL.createObjectURL(file)}
-                          alt={`Upload ${index + 1}`}
+                          src={URL.createObjectURL(file)} alt={`Upload ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border border-gray-200"
                           width={180} height={128}
                         />
                         <button
                           type="button"
                           onClick={() => {
-                            const newFiles = Array.from(images).filter(
-                              (_, i) => i !== index
-                            );
+                            const newFiles = Array.from(images).filter((_, i) => i !== index);
                             const dt = new DataTransfer();
                             newFiles.forEach((file) => dt.items.add(file));
                             setImages(dt.files);
                           }}
                           className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 hover:bg-black/90"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
@@ -203,25 +165,11 @@ export default function NewPostModal({ isOpen, onClose, user }: NewPostModalProp
               {/* Image Upload */}
               <label className="cursor-pointer hover:bg-gray-100 p-2 rounded-full transition-colors">
                 <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
+                  onChange={(e) => setImages(e.target.files)}
+                  type="file" accept="image/*" multiple
                   className="hidden"
                 />
-                <svg
-                  className="w-5 h-5 text-pink-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
+                <ImageIcon className="w-5 h-5 text-pink-500" />
               </label>
             </div>
 

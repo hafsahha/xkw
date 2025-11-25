@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     if (tweetCollection && userCollection && likeCollection && bookmarkCollection) {
         const searchParams = req.nextUrl.searchParams;
         const findRoot = searchParams.get("findRoot") === "true";
+        const quote = searchParams.get("quote") === "true";
         const currentUser = searchParams.get("currentUser");
         const username = searchParams.get("username");
         const tweetstats = searchParams.get("tweetstats");
@@ -33,20 +34,25 @@ export async function GET(req: NextRequest) {
         // Get a single tweet data by tweet ID
         if (id) {
             const tweet = await tweetCollection.findOne({ tweetId: id });
-            if (findRoot) {
-                const parents = [];
-                let currentTweet = tweet;
-                while (currentTweet && currentTweet.parentTweetId) {
-                    const parentTweet = await tweetCollection.findOne({ _id: currentTweet.parentTweetId });
-                    if (parentTweet) {
-                        parents.unshift(parentTweet);
-                        currentTweet = parentTweet;
-                    } else break;
-                }
-                return NextResponse.json(parents.length > 0 ? parents : null);
-            }
-            
             if (tweet) {
+                if (quote) {
+                    const quotedTweet = await tweetCollection.findOne({ _id: tweet.parentTweetId });
+                    return NextResponse.json(quotedTweet);
+                }
+                
+                if (findRoot) {
+                    const parents = [];
+                    let currentTweet = tweet;
+                    while (currentTweet && currentTweet.parentTweetId) {
+                        const parentTweet = await tweetCollection.findOne({ _id: currentTweet.parentTweetId });
+                        if (parentTweet) {
+                            parents.unshift(parentTweet);
+                            currentTweet = parentTweet;
+                        } else break;
+                    }
+                    return NextResponse.json(parents.length > 0 ? parents : null);
+                }
+
                 const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweet._id }) !== null;
                 const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweet._id }) !== null;
                 const isBookmarked = await bookmarkCollection.findOne({ bookmarkedBy: userObject._id, tweetId: tweet._id }) !== null;
@@ -66,9 +72,12 @@ export async function GET(req: NextRequest) {
 
         // Get all tweets by username
         if (username) {
+            const targetObject = await userCollection.findOne({ username });
+            if (!targetObject) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
             // Filter liked tweets only
             if (searchParams.get("likedOnly") === "true") {
-                const likedTweets = await likeCollection.find({ likedBy: username }).sort({ createdAt: -1 }).toArray();
+                const likedTweets = await likeCollection.find({ likedBy: targetObject._id }).sort({ createdAt: -1 }).toArray();
                 const detailedLikedTweets = await Promise.all(likedTweets.map(async (like) => {
                     const tweetObject = await tweetCollection.findOne({ _id: like.tweetId });
                     const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
@@ -76,6 +85,18 @@ export async function GET(req: NextRequest) {
                     return { ...tweetObject, isLiked: true, isRetweeted, isBookmarked };
                 }));
                 return NextResponse.json(detailedLikedTweets);
+            }
+
+            // Filter bookmarked tweets only
+            if (searchParams.get("bookmarkedOnly") === "true") {
+                const bookmarkedTweets = await bookmarkCollection.find({ bookmarkedBy: targetObject._id }).sort({ createdAt: -1 }).toArray();
+                const detailedBookmarkedTweets = await Promise.all(bookmarkedTweets.map(async (bookmark) => {
+                    const tweetObject = await tweetCollection.findOne({ _id: bookmark.tweetId });
+                    const isLiked = await likeCollection.findOne({ likedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
+                    const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
+                    return { ...tweetObject, isLiked, isRetweeted, isBookmarked: true };
+                }));
+                return NextResponse.json(detailedBookmarkedTweets);
             }
 
             const includeReplies = searchParams.get("includeReplies") === "true"; // Include reply tweets
@@ -98,7 +119,7 @@ export async function GET(req: NextRequest) {
             
             // Get user retweets
             if (!mediaOnly) {
-                const userRetweets = await retweetCollection.find({ retweetedBy: username }).toArray();
+                const userRetweets = await retweetCollection.find({ retweetedBy: targetObject._id }).toArray();
                 const retweetedPosts = await Promise.all(userRetweets.map(async (retweet) => {
                     const originalPost = await tweetCollection.findOne({ _id: retweet.tweetId });
                     if (!originalPost) return null;

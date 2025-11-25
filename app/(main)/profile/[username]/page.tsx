@@ -19,9 +19,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ username: String(username) });
-      if (currentUser) params.set("currentUser", currentUser);
-
+      const params = new URLSearchParams({ username, currentUser: username });
       if (activeTab === "Replies") params.set("includeReplies", "true");
       else if (activeTab === "Media") params.set("mediaOnly", "true");
       else if (activeTab === "Likes") params.set("likedOnly", "true");
@@ -278,13 +276,17 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="grid grid-cols-3 p-1 min-h-screen content-start gap-1">
             {userPosts!.map((tweet, _) => (
               <div key={_} className="relative aspect-square overflow-hidden">
-                <TweetCard tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} mediaOnly />
+                <TweetCard user={userData} tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} mediaOnly />
               </div>
             ))}
           </div>
+        ) : activeTab === "Likes" ? (
+          <div className="min-h-screen divide-y divide-gray-200">
+            {userPosts!.map((tweet, _) => <TweetCard key={_} user={userData} tweet={tweet} onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
+          </div>
         ) : (
           <div className="min-h-screen divide-y divide-gray-200">
-            {userPosts!.map((tweet, _) => <TweetCard key={_} tweet={tweet} findRoot onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
+            {userPosts!.map((tweet, _) => <TweetCard key={_} user={userData} tweet={tweet} findRoot onRetweetSuccess={fetchPosts} onDeleteSuccess={fetchPosts} />)}
           </div>
         )
       )}
