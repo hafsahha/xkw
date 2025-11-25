@@ -4,14 +4,18 @@ import db from "@/lib/db";
 
 // Fetch tweets (by ID, by username, or all)
 export async function GET(req: NextRequest) {
-    const database = await db;
-    const tweetCollection = database?.collection("tweets");
-    const userCollection = database?.collection("users");
-    const likeCollection = database?.collection("likes");
-    const retweetCollection = database?.collection("retweets");
-    const bookmarkCollection = database?.collection("bookmarks");
-    
-    if (tweetCollection && userCollection && likeCollection && bookmarkCollection) {
+    try {
+        const database = await db;
+        const tweetCollection = database?.collection("tweets");
+        const userCollection = database?.collection("users");
+        const likeCollection = database?.collection("likes");
+        const retweetCollection = database?.collection("retweets");
+        const bookmarkCollection = database?.collection("bookmarks");
+        
+        if (!tweetCollection || !userCollection || !likeCollection || !bookmarkCollection) {
+            return NextResponse.json({ message: "Database connection error" }, { status: 500 });
+        }
+
         const searchParams = req.nextUrl.searchParams;
         const findRoot = searchParams.get("findRoot") === "true";
         const currentUser = searchParams.get("currentUser");
@@ -68,7 +72,7 @@ export async function GET(req: NextRequest) {
         if (username) {
             // Filter liked tweets only
             if (searchParams.get("likedOnly") === "true") {
-                const likedTweets = await likeCollection.find({ likedBy: username }).sort({ createdAt: -1 }).toArray();
+                const likedTweets = await likeCollection.find({ likedBy: userObject._id }).sort({ createdAt: -1 }).toArray();
                 const detailedLikedTweets = await Promise.all(likedTweets.map(async (like) => {
                     const tweetObject = await tweetCollection.findOne({ _id: like.tweetId });
                     const isRetweeted = await retweetCollection.findOne({ retweetedBy: userObject._id, tweetId: tweetObject?._id }) !== null;
@@ -110,7 +114,7 @@ export async function GET(req: NextRequest) {
                 
                 // Combine & sort all posts, using retweetedAt for retweets when available
                 detailedUserTweets = [...detailedUserTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
-                    const timeOf = (t) => {
+                    const timeOf = (t: any) => {
                         if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
                         else return new Date(t.createdAt).getTime();
                     };
@@ -146,15 +150,20 @@ export async function GET(req: NextRequest) {
         
         // Gabung & sort (now without duplicates)
         detailedAllTweets = [...detailedAllTweets, ...retweetedPosts].sort((tweetA, tweetB) => {
-            const timeOf = (t) => {
+            const timeOf = (t: any) => {
                 if (t?.type === "Retweet") return new Date(t.retweetedAt).getTime();
                 else return new Date(t.createdAt).getTime();
             };
             return timeOf(tweetB) - timeOf(tweetA);
         });
         return NextResponse.json(detailedAllTweets);
+    } catch (error) {
+        console.error("[ERROR] GET /api/post failed:", error);
+        return NextResponse.json(
+            { message: "Failed to fetch tweets", error: String(error) },
+            { status: 500 }
+        );
     }
-    return NextResponse.json({ message: "No tweets found" }, { status: 404 });
 }
 
 // Create a new tweet
@@ -164,109 +173,60 @@ export async function POST(req: NextRequest) {
     const userCollection = database?.collection("users");
 
     if (tweetCollection && userCollection) {
-        const body = await req.json();
-        const { username, content, media, tweetRef, type } = body;
-        if (!username || !content) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+        try {
+            const body = await req.json();
+            const { username, content, media, tweetRef, type } = body;
+            if (!username || !content) return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
 
-        const authorObject = await userCollection.findOne({ username: username });
-        const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
-        const newTweet = {
-            author: {
-                name: authorObject?.name,
-                username: authorObject?.username,
-                avatar: authorObject?.media.avatar,
-            },
-            content: content.trim(),
-            media: media || [],
-            parentTweetId: refObject?._id,
-            type: type || "Original",
-            stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
-            createdAt: new Date()
-        };
-        const result = await tweetCollection.insertOne(newTweet);
+            const authorObject = await userCollection.findOne({ username: username });
+            if (!authorObject) return NextResponse.json({ message: "Author not found" }, { status: 404 });
+            
+            const refObject = tweetRef ? await tweetCollection.findOne({ tweetId: tweetRef }) : null;
+            const newTweet = {
+                author: {
+                    name: authorObject?.name,
+                    username: authorObject?.username,
+                    avatar: authorObject?.media?.avatar || "default_avatar.png",
+                },
+                content: content.trim(),
+                media: media || [],
+                parentTweetId: refObject?._id,
+                type: type || "Original",
+                stats: { replies: 0, retweets: 0, quotes: 0, likes: 0 },
+                createdAt: new Date()
+            };
+            const result = await tweetCollection.insertOne(newTweet);
 
-        const id = String(result.insertedId);
-        const secret = process.env.TWEET_SECRET || "default_secret";
-        const raw = createHmac("sha256", secret).update(id).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-        const tweetId = raw.slice(0, 24);
+            const id = String(result.insertedId);
+            const secret = process.env.TWEET_SECRET || "default_secret";
+            const raw = createHmac("sha256", secret).update(id).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+            const tweetId = raw.slice(0, 24);
 
-        if (refObject) {
-            switch (type) {
-                case "Reply":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.replies": 1 } });
-                    break;
-                case "Retweet":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.retweets": 1 } });
-                    break;
-                case "Quote":
-                    await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.quotes": 1 } });
-                    break;
+            if (refObject) {
+                switch (type) {
+                    case "Reply":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.replies": 1 } });
+                        break;
+                    case "Retweet":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.retweets": 1 } });
+                        break;
+                    case "Quote":
+                        await tweetCollection.updateOne({ _id: refObject._id }, { $inc: { "stats.quotes": 1 } });
+                        break;
+                }
             }
+            
+            // Update user tweetCount
+            await userCollection.updateOne({ username: username }, { $inc: { tweetCount: 1 } });
+            await tweetCollection.updateOne({ _id: result.insertedId }, { $set: { tweetId: tweetId } });
+            
+            return NextResponse.json({ message: "Tweet created", tweetId }, { status: 201 });
+        } catch (error) {
+            console.error("Error creating tweet:", error);
+            return NextResponse.json({ message: "Failed to create tweet", error: String(error) }, { status: 500 });
         }
-        await userCollection.updateOne({ username: username }, { $inc: { "stats.tweetCount": 1 } });
-        await tweetCollection.updateOne({ _id: result.insertedId }, { $set: { tweetId: tweetId } });
-        return NextResponse.json({ message: "Tweet created", tweetId }, { status: 201 });
     }
-    return NextResponse.json({ message: "Failed to create tweet" }, { status: 500 });
+    return NextResponse.json({ message: "Database error" }, { status: 500 });
 }
 
-// Delete a tweet
-export async function DELETE(req: NextRequest) {
-    const database = await db;
-    const tweetCollection = database?.collection("tweets");
-    const userCollection = database?.collection("users");
-    const likeCollection = database?.collection("likes");
-    const retweetCollection = database?.collection("retweets");
-    const bookmarkCollection = database?.collection("bookmarks");
-
-    if (tweetCollection && userCollection && likeCollection && retweetCollection && bookmarkCollection) {
-        const body = await req.json();
-        const { tweetId, username } = body;
-        
-        if (!tweetId || !username) {
-            return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
-        }
-
-        // Find the tweet
-        const tweet = await tweetCollection.findOne({ tweetId: tweetId });
-        if (!tweet) {
-            return NextResponse.json({ message: "Tweet not found" }, { status: 404 });
-        }
-
-        // Check if the current user is the author
-        if (tweet.author.username !== username) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-        }
-
-        // Delete the tweet
-        await tweetCollection.deleteOne({ tweetId: tweetId });
-
-        // Delete all related data (likes, retweets, bookmarks)
-        await likeCollection.deleteMany({ tweetId: tweet._id });
-        await retweetCollection.deleteMany({ tweetId: tweet._id });
-        await bookmarkCollection.deleteMany({ tweetId: tweet._id });
-
-        // Delete all replies to this tweet
-        const replies = await tweetCollection.find({ parentTweetId: tweet._id }).toArray();
-        for (const reply of replies) {
-            await tweetCollection.deleteOne({ _id: reply._id });
-            await likeCollection.deleteMany({ tweetId: reply._id });
-            await retweetCollection.deleteMany({ tweetId: reply._id });
-            await bookmarkCollection.deleteMany({ tweetId: reply._id });
-        }
-
-        // Update user stats
-        await userCollection.updateOne({ username: username }, { $inc: { "stats.tweetCount": -1 } });
-
-        // If this is a reply, decrement parent's reply count
-        if (tweet.parentTweetId) {
-            const parentTweet = await tweetCollection.findOne({ _id: tweet.parentTweetId });
-            if (parentTweet) {
-                await tweetCollection.updateOne({ _id: tweet.parentTweetId }, { $inc: { "stats.replies": -1 } });
-            }
-        }
-
-        return NextResponse.json({ message: "Tweet deleted successfully" }, { status: 200 });
-    }
-    return NextResponse.json({ message: "Failed to delete tweet" }, { status: 500 });
-}
+// testt

@@ -6,16 +6,11 @@ import FloatingModal from "../ui/FloatingModal";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function TweetCard({
-  tweet, mediaOnly, findRoot, isRoot, isMid, sidebarMode, onRetweetSuccess, onDeleteSuccess
-}: {
-  tweet: Post, mediaOnly?: boolean, findRoot?: boolean, isRoot?: boolean, isMid?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void, onDeleteSuccess?: () => void
-}) {
+export default function TweetCard({ tweet, mediaOnly, sidebarMode, onRetweetSuccess }: { tweet: Post, mediaOnly?: boolean, sidebarMode?: boolean, onRetweetSuccess?: () => void }) {
   const optionsRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isOptionOpen, setIsOptionOpen] = useState(false);
   const [localStats, setLocalStats] = useState(tweet.stats);
-  const [tweetParents, setTweetParents] = useState<Post[] | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(tweet.isBookmarked);
   const [isRetweeted, setIsRetweeted] = useState(tweet.isRetweeted);
   const [isLiked, setIsLiked] = useState(tweet.isLiked);
@@ -38,17 +33,6 @@ export default function TweetCard({
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
-
-  useEffect(() => {
-    async function findRootTweet() {
-      const params = new URLSearchParams({currentUser: String(currentUser), id: tweet.tweetId, findRoot: 'true'});
-      const response = await fetch(`/api/post?${params.toString()}`);
-      const data = await response.json();
-      setTweetParents(data as Post[]);
-      console.log('Fetched tweet parents:', data);
-    }
-    if (currentUser && findRoot && tweet.type === "Reply") findRootTweet();
-  }, [tweet, currentUser, findRoot]);
 
   const handleLike = async () => {
     if (isLoadingLike) return; // Prevent duplicate clicks
@@ -127,163 +111,158 @@ export default function TweetCard({
         href={`/tweet/${tweet.tweetId}/image/1`}
         className='relative block group h-full w-full rounded overflow-hidden'
       >
-        <Image src={`/img/${tweet.media[0]}`} alt={`Media 1`} className="object-cover w-full h-full" fill />
-        {tweet.media.length > 1 && (
-          <Copy className="absolute bottom-2 right-2 h-8 w-8 text-white bg-black/50 rounded-lg p-1" />
+        {tweet.media && tweet.media.length > 0 && (
+          <>
+            <Image src={`/img/${tweet.media[0]}`} alt={`Media 1`} className="object-cover w-full h-full" fill />
+            {tweet.media.length > 1 && (
+              <Copy className="absolute bottom-2 right-2 h-8 w-8 text-white bg-black/50 rounded-lg p-1" />
+            )}
+          </>
         )}
       </Link>
     )
   }
 
   return (
-    <>
-      {tweetParents && tweetParents.map((parent, idx) => ( <TweetCard key={parent.tweetId} tweet={parent} isRoot={idx === 0} isMid={idx !== 0} /> ))}
-      <article 
-      className={`p-4 ${tweet.type === 'Retweet' ? 'pt-1' : ''} hover:bg-gray-50/50 transition-colors cursor-pointer
-        ${(isRoot || isMid) ? 'border-0 pb-0' : 'border-b border-gray-200'} ${(tweetParents || isMid) ? 'pt-0' : ''}
-      `}
+    <article 
+      className={`border-b border-gray-200 p-4 ${tweet.type === 'Retweet' ? 'pt-1' : ''} hover:bg-gray-50/50 transition-colors cursor-pointer`}
       onClick={() => window.location.href = `/tweet/${tweet.tweetId}`}
-      >
-        {/* Retweet indicator */}
-        {tweet.type === 'Retweet' && (
-          <div className="flex items-center mb-1 text-gray-500 text-sm space-x-3">
-            <div className="flex w-10 mt-0.5 justify-end">
-              <Repeat2 className="h-4 w-4 flex-shrink-0" />
-            </div>
-            <span>
-              {`${currentUser === tweet.author.username ? 'You' : tweet.author.name} retweeted`}
-            </span>
+    >
+      {/* Retweet indicator */}
+      {tweet.type === 'Retweet' && (
+        <div className="flex items-center mb-1 text-gray-500 text-sm space-x-3">
+          <div className="flex w-10 mt-0.5 justify-end">
+            <Repeat2 className="h-4 w-4 flex-shrink-0" />
           </div>
-        )}
+          <span>
+            {`${currentUser === tweet.author.username ? 'You' : tweet.author.name} retweeted`}
+          </span>
+        </div>
+      )}
 
-        <div className="flex space-x-3">
-          <div className="flex flex-col items-center">
-            {(tweetParents || isMid) && <div className="flex-1 max-h-3 w-px bg-gray-300 mb-1" />}
-            {/* Avatar */}
-            <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
-              <Image src={`/img/${tweet.author.avatar}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
+      <div className="flex space-x-3">
+        {/* Avatar */}
+        <Link href={`/profile/${tweet.author.username}`} className="w-10 h-10 flex-shrink-0">
+          <Image src={`/img/${tweet.author.avatar || "default_avatar.png"}`} alt={tweet.author.name} className="w-full h-full rounded-full object-cover" width={40} height={40} />
+        </Link>
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-center space-x-1">
+            <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1 min-w-0">
+              <h3 className={`font-semibold text-gray-900 hover:underline cursor-pointer ${sidebarMode ? 'truncate' : ''}`}>
+              {tweet.author.name}
+              </h3>
+              <span className={`text-gray-500 ${sidebarMode ? 'truncate' : ''}`}>
+                @{tweet.author.username}
+              </span>
             </Link>
-            {(isRoot || isMid) && <div className="flex-1 w-px bg-gray-300 mt-1" />}
+            <span className="text-gray-500">·</span>
+            <time className="text-gray-500 text-sm">
+              {formatTime(tweet.createdAt)}
+            </time>
+            <div ref={optionsRef} className="relative ml-auto">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
+              >
+                <Ellipsis className="h-4 w-4" />
+              </button>
+              {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} />}
+            </div>
           </div>
-          
-          {/* Content */}
-          <div className={`flex-1 min-w-0 ${(isRoot || isMid) ? 'pb-4' : ''} ${(tweetParents || isMid) ? 'pt-4' : ''}`}>
-            {/* Header */}
-            <div className="flex items-center space-x-1">
-              <Link href={`/profile/${tweet.author.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1 min-w-0">
-                <h3 className={`font-semibold text-gray-900 hover:underline cursor-pointer ${sidebarMode ? 'truncate' : ''}`}>
-                {tweet.author.name}
-                </h3>
-                <span className={`text-gray-500 ${sidebarMode ? 'truncate' : ''}`}>
-                  @{tweet.author.username}
-                </span>
-              </Link>
-              <span className="text-gray-500">·</span>
-              <time className="text-gray-500 text-sm">
-                {formatTime(tweet.createdAt)}
-              </time>
-              <div ref={optionsRef} className="relative ml-auto">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsOptionOpen(!isOptionOpen); }}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
-                >
-                  <Ellipsis className="h-4 w-4" />
-                </button>
-                {isOptionOpen && <FloatingModal type="tweetOptions" tweet={tweet} onClose={() => setIsOptionOpen(false)} onDeleteSuccess={onDeleteSuccess} />}
+
+          {/* Tweet Content */}
+          <div className="flex flex-col mt-1 gap-1">
+            <p className="text-gray-900 whitespace-pre-wrap">{tweet.content}</p>
+            {tweet.media.length > 0 && (
+              <div className={`mt-2 ${tweet.media.length > 1 ? `grid grid-cols-2 auto-rows-fr rounded-xl ${sidebarMode ? 'h-40 gap-0.5' : 'h-80 gap-1'}` : 'flex w-full'} overflow-hidden items-center`}>
+                {tweet.media.map((mediaUrl, idx) => (
+                  <Link
+                    key={idx} onClick={(e) => e.stopPropagation()}
+                    href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
+                    className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
+                  >
+                    <Image
+                      src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                      className={`${tweet.media.length > 1 ? 'h-full w-full' : 'max-h-100 max-w-full w-auto h-auto rounded-xl'} object-cover`}
+                      width={1000} height={1000}
+                    />
+                  </Link>
+                ))}
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Tweet Content */}
-            <div className="flex flex-col mt-1 gap-1">
-              <p className="text-gray-900 whitespace-pre-wrap">{tweet.content}</p>
-              {tweet.media.length > 0 && (
-                <div className={`mt-2 ${tweet.media.length > 1 ? `grid grid-cols-2 auto-rows-fr rounded-xl ${sidebarMode ? 'h-40 gap-0.5' : 'h-80 gap-1'}` : 'flex w-full'} overflow-hidden items-center`}>
-                  {tweet.media.map((mediaUrl, idx) => (
-                    <Link
-                      key={idx} onClick={(e) => e.stopPropagation()}
-                      href={`/tweet/${tweet.tweetId}/image/${idx + 1}`}
-                      className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
-                    >
-                      <Image
-                        src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
-                        className={`${tweet.media.length > 1 ? 'h-full w-full' : 'max-h-100 max-w-full w-auto h-auto rounded-xl'} object-cover`}
-                        width={1000} height={1000}
-                      />
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Actions */}
+          <div className="flex w-full items-center justify-between mt-3">
+            {/* Reply */}
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group"
+            >
+              <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
+                <MessageCircleMore className="h-4 w-4" />
+              </div>
+                <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
+            </button>
 
-            {/* Actions */}
-            <div className="flex w-full items-center justify-between mt-3">
-              {/* Reply */}
+            {/* Retweet */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
+              disabled={isLoadingRetweet}
+              className={`flex items-center space-x-2 transition-colors group ${
+                isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
+              } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+                <Repeat2 className="h-4 w-4" />
+              </div>
+              <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
+            </button>
+
+            {/* Like */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleLike(); }}
+              disabled={isLoadingLike}
+              className={`flex items-center space-x-2 transition-colors group ${
+                isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+              } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
+                <Heart className={`h-4 w-4 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
+              </div>
+              <span className="text-sm">{localStats.likes > 0 ? formatNumber(localStats.likes) : ' '}</span>
+            </button>
+
+            <div className="flex items-center space-x-2">
+              {/* Bookmark */}
               <button 
+                onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+                className={`flex items-center transition-colors group ${
+                  isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
+                }`}
+              >
+                <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                  <Bookmark className={`h-4 w-4 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
+                </div>
+              </button>
+
+              {/* Share */}
+              <button
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors group"
+                className="flex items-center text-gray-500 hover:text-pink-500 transition-colors group"
               >
                 <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                  <MessageCircleMore className="h-4 w-4" />
+                  <Share2 className="h-4 w-4" />
                 </div>
-                  <span className="text-sm">{localStats.replies > 0 ? formatNumber(localStats.replies) : ' '}</span>
               </button>
-
-              {/* Retweet */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleRetweet(); }}
-                disabled={isLoadingRetweet}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isRetweeted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'
-                } ${isLoadingRetweet ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                  <Repeat2 className="h-4 w-4" />
-                </div>
-                <span className="text-sm">{localStats.retweets > 0 ? formatNumber(localStats.retweets) : ' '}</span>
-              </button>
-
-              {/* Like */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                disabled={isLoadingLike}
-                className={`flex items-center space-x-2 transition-colors group ${
-                  isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-                } ${isLoadingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="p-2 rounded-full group-hover:bg-red-50 transition-colors">
-                  <Heart className={`h-4 w-4 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-                </div>
-                <span className="text-sm">{localStats.likes > 0 ? formatNumber(localStats.likes) : ' '}</span>
-              </button>
-
-              <div className="flex items-center space-x-2">
-                {/* Bookmark */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
-                  className={`flex items-center transition-colors group ${
-                    isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
-                  }`}
-                >
-                  <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <Bookmark className={`h-4 w-4 ${isBookmarked ? 'text-blue-500 fill-blue-500' : ''}`} />
-                  </div>
-                </button>
-
-                {/* Share */}
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center text-gray-500 hover:text-pink-500 transition-colors group"
-                >
-                  <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                    <Share2 className="h-4 w-4" />
-                  </div>
-                </button>
-              </div>
             </div>
           </div>
         </div>
-      </article>
-    </>
+      </div>
+    </article>
   );
 }
 

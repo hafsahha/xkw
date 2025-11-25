@@ -12,7 +12,7 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tweetText.trim() || !user) return;
+    if (!tweetText.trim() || !user?.username) return;
 
     setIsPosting(true);
     try {
@@ -78,7 +78,7 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
       <form onSubmit={handleSubmit}>
         <div className="flex space-x-3">
           {/* Avatar */}
-          <Image src={`/img/${user!.media.avatar ?? "default_avatar.png"}`} alt={user!.name} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
+          <Image src={`/img/${user?.media?.avatar ?? "default_avatar.png"}`} alt={user?.name ?? "User"} className="size-10 rounded-full flex-shrink-0" width={40} height={40} />
 
           {/* Compose Area */}
           <div className="flex-1">

@@ -19,6 +19,11 @@ export async function GET(req: NextRequest) {
                 // Ensure followers and following fields are included with default values
                 serializedUser.followers = serializedUser.followers || [];
                 serializedUser.following = serializedUser.following || [];
+                serializedUser.media = serializedUser.media || { avatar: "default_avatar.png", banner: "default_banner.png" };
+                serializedUser.tweetCount = serializedUser.tweetCount || 0;
+                serializedUser.likeCount = serializedUser.likeCount || 0;
+                serializedUser.bookmarkCount = serializedUser.bookmarkCount || 0;
+                serializedUser.retweetCount = serializedUser.retweetCount || 0;
 
                 return NextResponse.json(serializedUser);
             }
@@ -29,6 +34,11 @@ export async function GET(req: NextRequest) {
             ...rest,
             followers: rest.followers || [],
             following: rest.following || [],
+            media: rest.media || { avatar: "default_avatar.png", banner: "default_banner.png" },
+            tweetCount: rest.tweetCount || 0,
+            likeCount: rest.likeCount || 0,
+            bookmarkCount: rest.bookmarkCount || 0,
+            retweetCount: rest.retweetCount || 0,
         }));
         return NextResponse.json(serializedUsers);
     }
@@ -57,6 +67,16 @@ export async function POST(req: NextRequest) {
             password : hashedPassword,
             name: body.name || "",
             bio: body.bio || "",
+            media: {
+                avatar: "default_avatar.png",
+                banner: "default_banner.png"
+            },
+            followers: [],
+            following: [],
+            tweetCount: 0,
+            likeCount: 0,
+            bookmarkCount: 0,
+            retweetCount: 0
         };
         // Insert the new user into the database
         const result = await usersCollection.insertOne(newUser);
