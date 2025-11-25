@@ -40,34 +40,49 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
 
     setIsPosting(true);
     try {
+      console.log("[TWEET COMPOSER] Posting new tweet...");
+      console.log("[TWEET COMPOSER] User:", user.username);
+      console.log("[TWEET COMPOSER] Content length:", tweetText.length);
+      
       let uploadedMedia: string[] = [];
       if (images) {
+        console.log("[TWEET COMPOSER] Uploading", images.length, "images...");
         uploadedMedia = await uploadMedia(images);
+        console.log("[TWEET COMPOSER] Uploaded media count:", uploadedMedia.length);
       }
+
+      const payload = {
+        username: user.username,
+        content: tweetText,
+        media: uploadedMedia,
+        type: "Original",
+      };
+      
+      console.log("[TWEET COMPOSER] Sending POST /api/post with payload:", payload);
 
       const response = await fetch("/api/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user.username,
-          content: tweetText,
-          media: uploadedMedia,
-          type: "Original",
-        }),
+        body: JSON.stringify(payload),
       });
 
+      console.log("[TWEET COMPOSER] Response status:", response.status);
+
       if (response.ok) {
-        await response.json();
+        const data = await response.json();
+        console.log("[TWEET COMPOSER] ✅ Tweet posted successfully:", data);
         setTweetText("");
         setImages(null);
         setIsExpanded(false);
 
         if (onTweetPosted) onTweetPosted();
       } else {
-        alert("Gagal posting tweet");
+        const errorData = await response.json();
+        console.error("[TWEET COMPOSER] ❌ Failed to post tweet:", response.status, errorData);
+        alert("Gagal posting tweet: " + (errorData.message || response.statusText));
       }
     } catch (error) {
-      console.error("Error posting tweet:", error);
+      console.error("[TWEET COMPOSER] ERROR:", error);
       alert("Error: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsPosting(false);
