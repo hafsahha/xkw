@@ -2,10 +2,13 @@
 
 import { TrendingTopic } from "@/lib/types";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function RightSidebar() {
+  const router = useRouter();
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     // Fetch data from the /api/trending route
@@ -26,6 +29,13 @@ export default function RightSidebar() {
 
     fetchTrendingTopics();
   }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   const suggestedUsers = [
     {
@@ -55,10 +65,12 @@ export default function RightSidebar() {
     <div className="w-80 hidden lg:block p-4 space-y-6">
       {/* Search Bar */}
       <div className="sticky top-0 bg-white pb-4">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
             placeholder="Search XKW"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-100 rounded-full py-3 px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-colors placeholder-gray-600"
           />
           <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
@@ -76,7 +88,7 @@ export default function RightSidebar() {
               />
             </svg>
           </div>
-        </div>
+        </form>
       </div>
 
       {/* Trending Topics */}
@@ -89,6 +101,7 @@ export default function RightSidebar() {
             {trendingTopics.map((trend, index) => (
               <div
                 key={trend._id || index}
+                onClick={() => router.push(`/explore?q=${encodeURIComponent(trend.hashtag)}`)}
                 className="cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
               >
                 <div className="text-gray-500 text-sm">Trending in Technology</div>
