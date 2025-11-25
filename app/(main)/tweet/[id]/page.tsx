@@ -179,6 +179,14 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
     return num.toString();
   };
 
+  // Helper function to ensure correct media URL
+  const getMediaUrl = (url: string) => {
+    if (url.startsWith("/img/") || url.startsWith("/uploads/")) {
+      return url;
+    }
+    return `/img/${url}`; // Default to /img/ if no prefix is present
+  };
+
   return (
     <>
       {/* Header */}
@@ -240,7 +248,8 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                         className={`h-full w-full ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
                       >
                         <Image
-                          src={mediaUrl} alt={`media ${idx + 1}`}
+                          src={getMediaUrl(mediaUrl)}
+                          alt={`media ${idx + 1}`}
                           className={`${tweet.media.length === 1 ? 'rounded-xl' : 'w-full h-full'} object-cover`}
                           width={1000} height={1000}
                         />
