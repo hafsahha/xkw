@@ -240,7 +240,7 @@ export default function TweetPage({ params }: { params: Promise<{ id: string }> 
                         className={`h-full w-full ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
                       >
                         <Image
-                          src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                          src={mediaUrl} alt={`media ${idx + 1}`}
                           className={`${tweet.media.length === 1 ? 'rounded-xl' : 'w-full h-full'} object-cover`}
                           width={1000} height={1000}
                         />

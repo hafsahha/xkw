@@ -17,6 +17,29 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
 
   useEffect(() => setMounted(true), []);
 
+  const uploadMedia = async (files: FileList) => {
+    const uploadedMedia: string[] = [];
+
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`/api/post/${user!.username}/image`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        uploadedMedia.push(data.filePath);
+      } else {
+        console.error("Failed to upload media:", file.name);
+      }
+    }
+
+    return uploadedMedia;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || !user) {
@@ -26,13 +49,18 @@ export default function NewPostModal({ isOpen, user, onClose, onTweetPosted }: {
 
     setIsPosting(true);
     try {
+      let uploadedMedia: string[] = [];
+      if (images) {
+        uploadedMedia = await uploadMedia(images);
+      }
+
       const response = await fetch("/api/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: user.username,
           content,
-          media: images ? Array.from(images).map((file) => file.name) : [],
+          media: uploadedMedia,
           type: "Original",
         }),
       });

@@ -26,6 +26,8 @@ export default function TweetCard({
   const [isLoadingBookmark, setIsLoadingBookmark] = useState(false);
   const [isLoadingRetweet, setIsLoadingRetweet] = useState(false);
   const [isLoadingLike, setIsLoadingLike] = useState(false);
+  // Define state for quoted tweet
+  const [quoteTweet, setQuoteTweet] = useState<Post | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('loggedUser');
@@ -88,11 +90,11 @@ export default function TweetCard({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: loggedUser, tweetId: tweet.tweetId })
         });
-      } else {
-        // on progress
-      }
+      } 
 
-      if (response.ok) if (onRetweetSuccess) { onRetweetSuccess() }
+      if (response && response.ok && onRetweetSuccess) {
+        onRetweetSuccess();
+      }
     } finally { setIsLoadingRetweet(false) }
   };
 
@@ -128,6 +130,13 @@ export default function TweetCard({
     if (hours > 0) return `${hours}h`;
     const minutes = Math.floor(diff / (1000 * 60));
     return `${minutes}m`;
+  };
+
+  const getMediaUrl = (url: string) => {
+    if (url.startsWith("/img/") || url.startsWith("/uploads/")) {
+      return url;
+    }
+    return `/img/${url}`; // Default to /img/ if no prefix is present
   };
 
   if (mediaOnly) {
@@ -214,9 +223,11 @@ export default function TweetCard({
                       className={`${tweet.media.length > 1 ? 'h-full w-full' : ''} ${tweet.media.length === 3 && idx === 0 ? 'row-span-2' : ''}`}
                     >
                       <Image
-                        src={`/img/${mediaUrl}`} alt={`media ${idx + 1}`}
+                        src={getMediaUrl(mediaUrl)}
+                        alt={`media ${idx + 1}`}
                         className={`${tweet.media.length > 1 ? 'h-full w-full' : 'max-h-100 max-w-full w-auto h-auto rounded-xl'} object-cover`}
-                        width={1000} height={1000}
+                        width={1000}
+                        height={1000}
                       />
                     </Link>
                   ))}
@@ -298,4 +309,3 @@ export default function TweetCard({
     </>
   );
 }
-

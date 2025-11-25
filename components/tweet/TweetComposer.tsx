@@ -11,21 +11,49 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
   const [isPosting, setIsPosting] = useState(false);
   const maxLength = 280;
 
+  const uploadMedia = async (files: FileList) => {
+    const uploadedMedia: string[] = [];
+
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`/api/post/${user!.username}/image`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        uploadedMedia.push(data.filePath);
+      } else {
+        console.error("Failed to upload media:", file.name);
+      }
+    }
+
+    return uploadedMedia;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tweetText.trim() || !user) return;
 
     setIsPosting(true);
     try {
+      let uploadedMedia: string[] = [];
+      if (images) {
+        uploadedMedia = await uploadMedia(images);
+      }
+
       const response = await fetch("/api/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: user.username,
           content: tweetText,
-          media: images ? Array.from(images).map((file) => file.name) : [],
-          type: "Original"
-        })
+          media: uploadedMedia,
+          type: "Original",
+        }),
       });
 
       if (response.ok) {
@@ -33,8 +61,7 @@ export default function TweetComposer({ user, loading, onTweetPosted }: { user?:
         setTweetText("");
         setImages(null);
         setIsExpanded(false);
-        
-        // Callback untuk refresh feed
+
         if (onTweetPosted) onTweetPosted();
       } else {
         alert("Gagal posting tweet");
